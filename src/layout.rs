@@ -416,7 +416,7 @@ impl LayoutManager {
             LayoutType::Float => LayoutType::BSP,
         };
     }
-    
+
     pub fn get_current_layout(&self) -> &LayoutType {
         &self.current_layout
     }
