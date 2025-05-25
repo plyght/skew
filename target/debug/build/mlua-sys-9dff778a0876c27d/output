@@ -1,5 +1,0 @@
-cargo:rerun-if-changed=build
-cargo:rustc-link-search=native=/Users/nicojaffer/skew/target/debug/build/mlua-sys-9dff778a0876c27d/out/lua-build/lib
-cargo:rustc-link-lib=static=lua5.4
-cargo:include=/Users/nicojaffer/skew/target/debug/build/mlua-sys-9dff778a0876c27d/out/lua-build/include
-cargo:lib=/Users/nicojaffer/skew/target/debug/build/mlua-sys-9dff778a0876c27d/out/lua-build/lib

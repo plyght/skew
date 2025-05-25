@@ -1,5 +1,0 @@
-cargo:rustc-link-lib=framework=Foundation
-cargo:rustc-link-lib=framework=AppKit
-cargo:rustc-link-lib=framework=CoreGraphics
-cargo:rustc-link-lib=framework=QuartzCore
-cargo:rustc-link-lib=framework=Security
