@@ -37,9 +37,15 @@ pub enum WindowEvent {
 #[derive(Debug)]
 pub enum Command {
     FocusWindow(WindowId),
+    FocusDirection(crate::hotkeys::Direction),
+    MoveDirection(crate::hotkeys::Direction),
     CloseWindow(WindowId),
+    CloseFocusedWindow,
     MoveWindow(WindowId, Rect),
     ToggleLayout,
+    ToggleFloat,
+    ToggleFullscreen,
+    SwapMain,
     ReloadConfig,
     ListWindows,
     GetStatus,
@@ -60,6 +66,7 @@ pub struct WindowManager {
 
     event_rx: mpsc::Receiver<WindowEvent>,
     command_rx: mpsc::Receiver<Command>,
+    command_tx: mpsc::Sender<Command>,
 }
 
 impl WindowManager {
@@ -86,6 +93,7 @@ impl WindowManager {
             plugin_manager,
             event_rx,
             command_rx,
+            command_tx,
         })
     }
 
@@ -196,9 +204,82 @@ impl WindowManager {
                     self.macos.move_window(id, rect).await?;
                 }
             }
+            Command::FocusDirection(direction) => {
+                if let Some(target_id) = self.find_window_in_direction(direction) {
+                    self.macos.focus_window(target_id).await?;
+                    info!("Focused window in direction {:?}", direction);
+                } else {
+                    debug!("No window found in direction {:?}", direction);
+                }
+            }
+            Command::MoveDirection(direction) => {
+                if let Some(focused_id) = self.get_focused_window_id() {
+                    if let Some(target_id) = self.find_window_in_direction(direction) {
+                        // For now, just swap the focused window with the target
+                        if let (Some(focused_window), Some(target_window)) = 
+                            (self.windows.get(&focused_id), self.windows.get(&target_id)) {
+                            let focused_rect = focused_window.rect;
+                            let target_rect = target_window.rect;
+                            
+                            self.macos.move_window(focused_id, target_rect).await?;
+                            self.macos.move_window(target_id, focused_rect).await?;
+                            
+                            info!("Swapped windows in direction {:?}", direction);
+                        }
+                    }
+                }
+            }
+            Command::CloseFocusedWindow => {
+                if let Some(focused_id) = self.get_focused_window_id() {
+                    self.macos.close_window(focused_id).await?;
+                    info!("Closed focused window");
+                }
+            }
             Command::ToggleLayout => {
                 self.layout_manager.toggle_layout();
                 self.apply_layout().await?;
+                info!("Toggled layout to: {:?}", self.layout_manager.get_current_layout());
+            }
+            Command::ToggleFloat => {
+                if let Some(_focused_id) = self.get_focused_window_id() {
+                    // For now, just apply layout - a full implementation would track floating state
+                    self.apply_layout().await?;
+                    info!("Toggled float for focused window");
+                }
+            }
+            Command::ToggleFullscreen => {
+                if let Some(focused_id) = self.get_focused_window_id() {
+                    // Get screen rect and move window to fill it
+                    let screen_rect = self.macos.get_screen_rect().await?;
+                    self.macos.move_window(focused_id, screen_rect).await?;
+                    info!("Toggled fullscreen for focused window");
+                }
+            }
+            Command::SwapMain => {
+                if let Some(focused_id) = self.get_focused_window_id() {
+                    // Find the "main" window (first in layout order) and swap with focused
+                    let workspace_windows: Vec<&Window> = self
+                        .windows
+                        .values()
+                        .filter(|w| w.workspace_id == self.current_workspace && !w.is_minimized)
+                        .collect();
+                    
+                    if let Some(main_window) = workspace_windows.first() {
+                        let main_id = main_window.id;
+                        if main_id != focused_id {
+                            if let (Some(focused_window), Some(main_window)) = 
+                                (self.windows.get(&focused_id), self.windows.get(&main_id)) {
+                                let focused_rect = focused_window.rect;
+                                let main_rect = main_window.rect;
+                                
+                                self.macos.move_window(focused_id, main_rect).await?;
+                                self.macos.move_window(main_id, focused_rect).await?;
+                                
+                                info!("Swapped focused window with main window");
+                            }
+                        }
+                    }
+                }
             }
             Command::ReloadConfig => {
                 info!("Reloading configuration");
@@ -222,12 +303,80 @@ impl WindowManager {
 
         Ok(())
     }
+    
+    fn get_focused_window_id(&self) -> Option<WindowId> {
+        self.windows
+            .values()
+            .find(|w| w.is_focused)
+            .map(|w| w.id)
+    }
+    
+    fn find_window_in_direction(&self, direction: crate::hotkeys::Direction) -> Option<WindowId> {
+        let focused_id = self.get_focused_window_id()?;
+        let focused_window = self.windows.get(&focused_id)?;
+        let focused_center = (
+            focused_window.rect.x + focused_window.rect.width / 2.0,
+            focused_window.rect.y + focused_window.rect.height / 2.0,
+        );
+        
+        let workspace_windows: Vec<&Window> = self
+            .windows
+            .values()
+            .filter(|w| {
+                w.workspace_id == self.current_workspace && 
+                !w.is_minimized && 
+                w.id != focused_id
+            })
+            .collect();
+        
+        let mut best_window: Option<WindowId> = None;
+        let mut best_distance = f64::INFINITY;
+        
+        for window in workspace_windows {
+            let window_center = (
+                window.rect.x + window.rect.width / 2.0,
+                window.rect.y + window.rect.height / 2.0,
+            );
+            
+            let is_in_direction = match direction {
+                crate::hotkeys::Direction::Left => window_center.0 < focused_center.0,
+                crate::hotkeys::Direction::Right => window_center.0 > focused_center.0,
+                crate::hotkeys::Direction::Up => window_center.1 < focused_center.1,
+                crate::hotkeys::Direction::Down => window_center.1 > focused_center.1,
+            };
+            
+            if is_in_direction {
+                let distance = ((window_center.0 - focused_center.0).powi(2) + 
+                               (window_center.1 - focused_center.1).powi(2)).sqrt();
+                
+                if distance < best_distance {
+                    best_distance = distance;
+                    best_window = Some(window.id);
+                }
+            }
+        }
+        
+        best_window
+    }
 
     async fn refresh_windows(&mut self) -> Result<()> {
         let current_windows = self.macos.get_windows().await?;
+        let old_count = self.windows.len();
 
+        // Build a new window map from current windows
+        let mut new_windows = HashMap::new();
         for window in current_windows {
-            self.windows.insert(window.id, window);
+            new_windows.insert(window.id, window);
+        }
+
+        // Replace the old window map with the new one
+        self.windows = new_windows;
+        
+        let new_count = self.windows.len();
+        if old_count != new_count {
+            debug!("Window count changed: {} -> {} windows", old_count, new_count);
+            // Trigger layout update when window count changes
+            self.apply_layout().await?;
         }
 
         Ok(())
@@ -241,8 +390,11 @@ impl WindowManager {
             .collect();
 
         if workspace_windows.is_empty() {
+            debug!("No windows to layout");
             return Ok(());
         }
+        
+        debug!("Applying layout to {} windows using {:?}", workspace_windows.len(), self.layout_manager.get_current_layout());
 
         let screen_rect = self.macos.get_screen_rect().await?;
         let layouts = self.layout_manager.compute_layout(
@@ -252,7 +404,12 @@ impl WindowManager {
         );
 
         for (window_id, rect) in layouts {
+            debug!("Applying layout: moving window {:?} to {:?}", window_id, rect);
             self.macos.move_window(window_id, rect).await?;
+            // Update our internal window state
+            if let Some(window) = self.windows.get_mut(&window_id) {
+                window.rect = rect;
+            }
         }
 
         Ok(())

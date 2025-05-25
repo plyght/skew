@@ -132,6 +132,21 @@ impl CGWindowInfo {
         if rect.width < 50.0 || rect.height < 50.0 {
             return None;
         }
+
+        // Filter out known system applications and problematic windows
+        let system_apps = [
+            "Dock", "SystemUIServer", "Control Center", "NotificationCenter",
+            "WindowServer", "loginwindow", "Spotlight", "CoreServicesUIAgent"
+        ];
+        
+        if system_apps.contains(&owner.as_str()) {
+            return None;
+        }
+
+        // Skip untitled windows from certain apps that are likely dialogs or panels
+        if title == "Untitled" && (owner.contains("Accessibility") || owner.contains("System")) {
+            return None;
+        }
         
         Some(Window {
             id: WindowId(window_id),

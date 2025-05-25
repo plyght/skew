@@ -244,7 +244,7 @@ impl MacOSWindowSystem {
     }
 
     pub async fn move_window_to_display(
-        &self,
+        &mut self,
         window_id: WindowId,
         target_display_id: u32,
     ) -> Result<()> {
@@ -271,15 +271,15 @@ impl MacOSWindowSystem {
         Ok(())
     }
 
-    pub async fn focus_window(&self, window_id: WindowId) -> Result<()> {
+    pub async fn focus_window(&mut self, window_id: WindowId) -> Result<()> {
         self.accessibility.focus_window(window_id)
     }
 
-    pub async fn move_window(&self, window_id: WindowId, rect: Rect) -> Result<()> {
+    pub async fn move_window(&mut self, window_id: WindowId, rect: Rect) -> Result<()> {
         self.accessibility.move_window(window_id, rect)
     }
 
-    pub async fn close_window(&self, window_id: WindowId) -> Result<()> {
+    pub async fn close_window(&mut self, window_id: WindowId) -> Result<()> {
         self.accessibility.close_window(window_id)
     }
 

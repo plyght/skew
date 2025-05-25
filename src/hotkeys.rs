@@ -1,11 +1,23 @@
 use crate::config::HotkeyConfig;
 use crate::window_manager::Command;
 use crate::Result;
-use log::{debug, info, warn};
-use rdev::Key;
+use log::{debug, error, info, warn};
+use rdev::{listen, Event, EventType, Key};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::thread;
 use tokio::sync::mpsc;
+
+// Global state for rdev callback - necessary because rdev requires function pointers
+static GLOBAL_HOTKEY_SENDER: OnceLock<std::sync::mpsc::Sender<rdev::Event>> = OnceLock::new();
+
+#[derive(Debug, Clone, Copy)]
+pub enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyCombination {
@@ -26,6 +38,7 @@ pub struct HotkeyManager {
     command_sender: mpsc::Sender<Command>,
     pressed_keys: Arc<Mutex<Vec<Key>>>,
     is_running: Arc<Mutex<bool>>,
+    event_receiver: Option<std::sync::mpsc::Receiver<rdev::Event>>,
 }
 
 impl HotkeyManager {
@@ -40,11 +53,20 @@ impl HotkeyManager {
             debug!("  {:?} -> {}", combo, action);
         }
 
+        // Create channel for rdev events
+        let (event_sender, event_receiver) = std::sync::mpsc::channel();
+        
+        // Set global sender (this can only be done once)
+        if GLOBAL_HOTKEY_SENDER.set(event_sender).is_err() {
+            warn!("Global hotkey sender already initialized");
+        }
+
         Ok(Self {
             bindings,
             command_sender,
             pressed_keys: Arc::new(Mutex::new(Vec::new())),
             is_running: Arc::new(Mutex::new(false)),
+            event_receiver: Some(event_receiver),
         })
     }
 
@@ -57,14 +79,40 @@ impl HotkeyManager {
             info!("  {:?} -> {}", combo, action);
         }
 
-        // For now, just log that we would start listening
-        // The rdev library requires function pointers rather than closures
-        // A full implementation would need a different approach
-        warn!("Global hotkey listener not yet fully implemented");
-        warn!("rdev library requires function pointers, which limits closure capturing");
-        warn!("Use IPC commands or simulate_hotkey for testing hotkey actions");
+        let mut running = self.is_running.lock().unwrap();
+        *running = true;
+        drop(running);
 
-        info!("Hotkey manager initialized (simulation mode)");
+        // Take the event receiver (can only be done once)
+        let event_receiver = self.event_receiver.take()
+            .ok_or_else(|| anyhow::anyhow!("Event receiver already taken"))?;
+
+        // Clone necessary data for the background tasks
+        let bindings = self.bindings.clone();
+        let command_sender = self.command_sender.clone();
+        let pressed_keys = self.pressed_keys.clone();
+        let is_running = self.is_running.clone();
+
+        // Start the rdev listener in a separate thread
+        thread::spawn(move || {
+            if let Err(e) = listen(global_hotkey_callback) {
+                error!("Error in global hotkey listener: {:?}", e);
+            }
+        });
+
+        // Start the event processing task
+        tokio::spawn(async move {
+            Self::process_hotkey_events(
+                event_receiver,
+                bindings,
+                command_sender,
+                pressed_keys,
+                is_running,
+            )
+            .await;
+        });
+
+        info!("Global hotkey listener started successfully");
         Ok(())
     }
 
@@ -123,17 +171,83 @@ impl HotkeyManager {
         Ok(bindings)
     }
 
-    fn key_is_pressed(keys: &[Key], target_key: &Key) -> bool {
-        keys.iter().any(|k| Self::keys_equal(k, target_key))
+    async fn process_hotkey_events(
+        event_receiver: std::sync::mpsc::Receiver<rdev::Event>,
+        bindings: HashMap<KeyCombination, String>,
+        command_sender: mpsc::Sender<Command>,
+        pressed_keys: Arc<Mutex<Vec<Key>>>,
+        is_running: Arc<Mutex<bool>>,
+    ) {
+        info!("Starting hotkey event processing");
+        
+        while *is_running.lock().unwrap() {
+            // Use a timeout to periodically check if we should stop
+            match event_receiver.recv_timeout(std::time::Duration::from_millis(100)) {
+                Ok(event) => {
+                    if let Err(e) = Self::handle_rdev_event(
+                        event,
+                        &bindings,
+                        &command_sender,
+                        &pressed_keys,
+                    ).await {
+                        error!("Error handling hotkey event: {}", e);
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // Continue loop to check is_running
+                    continue;
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    warn!("Hotkey event channel disconnected");
+                    break;
+                }
+            }
+        }
+        
+        info!("Hotkey event processing stopped");
+    }
+    
+    async fn handle_rdev_event(
+        event: rdev::Event,
+        bindings: &HashMap<KeyCombination, String>,
+        command_sender: &mpsc::Sender<Command>,
+        pressed_keys: &Arc<Mutex<Vec<Key>>>,
+    ) -> Result<()> {
+        match event.event_type {
+            EventType::KeyPress(key) => {
+                debug!("Key pressed: {:?}", key);
+                {
+                    let mut keys = pressed_keys.lock().unwrap();
+                    if !keys.iter().any(|k| std::mem::discriminant(k) == std::mem::discriminant(&key)) {
+                        keys.push(key);
+                    }
+                }
+                
+                // Check for matching key combinations
+                let keys = pressed_keys.lock().unwrap().clone();
+                if let Some(combination) = Self::match_key_combination(&keys, bindings) {
+                    info!("Hotkey triggered: {:?}", combination);
+                    if let Some(action) = bindings.get(&combination) {
+                        let command = Self::parse_action(action)?;
+                        if let Err(e) = command_sender.send(command).await {
+                            error!("Failed to send command: {}", e);
+                        }
+                    }
+                }
+            }
+            EventType::KeyRelease(key) => {
+                debug!("Key released: {:?}", key);
+                {
+                    let mut keys = pressed_keys.lock().unwrap();
+                    keys.retain(|k| std::mem::discriminant(k) != std::mem::discriminant(&key));
+                }
+            }
+            _ => {} // Ignore other event types
+        }
+        
+        Ok(())
     }
 
-    fn remove_key(keys: &mut Vec<Key>, target_key: &Key) {
-        keys.retain(|k| !Self::keys_equal(k, target_key));
-    }
-
-    fn keys_equal(key1: &Key, key2: &Key) -> bool {
-        std::mem::discriminant(key1) == std::mem::discriminant(key2)
-    }
 
     fn match_key_combination(
         pressed_keys: &[Key],
@@ -148,55 +262,48 @@ impl HotkeyManager {
     }
 
     fn is_combination_pressed(combination: &KeyCombination, pressed_keys: &[Key]) -> bool {
-        // Check if required modifiers are pressed
-        let mut required_keys = Vec::new();
-
+        fn key_is_pressed(keys: &[Key], target: &Key) -> bool {
+            keys.iter().any(|k| std::mem::discriminant(k) == std::mem::discriminant(target))
+        }
         for modifier in &combination.modifiers {
             match modifier {
-                ModifierKey::Alt => required_keys.push(Key::Alt),
-                ModifierKey::Ctrl => required_keys.push(Key::ControlLeft),
-                ModifierKey::Shift => required_keys.push(Key::ShiftLeft),
-                ModifierKey::Cmd => required_keys.push(Key::MetaLeft),
+                ModifierKey::Alt => {
+                    if !key_is_pressed(pressed_keys, &Key::Alt) && 
+                       !key_is_pressed(pressed_keys, &Key::AltGr) {
+                        return false;
+                    }
+                }
+                ModifierKey::Ctrl => {
+                    if !key_is_pressed(pressed_keys, &Key::ControlLeft) && 
+                       !key_is_pressed(pressed_keys, &Key::ControlRight) {
+                        return false;
+                    }
+                }
+                ModifierKey::Shift => {
+                    if !key_is_pressed(pressed_keys, &Key::ShiftLeft) && 
+                       !key_is_pressed(pressed_keys, &Key::ShiftRight) {
+                        return false;
+                    }
+                }
+                ModifierKey::Cmd => {
+                    if !key_is_pressed(pressed_keys, &Key::MetaLeft) && 
+                       !key_is_pressed(pressed_keys, &Key::MetaRight) {
+                        return false;
+                    }
+                }
             };
         }
 
-        // Add the main key
+        // Check the main key
         if let Some(key) = Self::string_to_key(&combination.key) {
-            required_keys.push(key);
+            if !key_is_pressed(pressed_keys, &key) {
+                return false;
+            }
         } else {
             return false;
         }
 
-        // Check if all required keys are pressed
-        for required_key in &required_keys {
-            if !Self::key_is_pressed(pressed_keys, required_key) {
-                return false;
-            }
-        }
-
-        // Check that we don't have unexpected modifiers
-        let modifier_keys = [
-            Key::Alt,
-            Key::ControlLeft,
-            Key::ShiftLeft,
-            Key::MetaLeft,
-            Key::ControlRight,
-            Key::ShiftRight,
-            Key::MetaRight,
-        ];
-
-        let pressed_modifiers: Vec<_> = pressed_keys
-            .iter()
-            .filter(|k| modifier_keys.iter().any(|mk| Self::keys_equal(k, mk)))
-            .collect();
-
-        let expected_modifiers: Vec<_> = required_keys
-            .iter()
-            .filter(|k| modifier_keys.iter().any(|mk| Self::keys_equal(k, mk)))
-            .collect();
-
-        // All expected modifiers should be pressed, no extra modifiers
-        pressed_modifiers.len() == expected_modifiers.len()
+        true
     }
 
     fn string_to_key(key_str: &str) -> Option<Key> {
@@ -298,26 +405,24 @@ impl HotkeyManager {
     }
 
     fn parse_action(action: &str) -> Result<Command> {
+        
         let parts: Vec<&str> = action.split(':').collect();
         let command = parts[0];
 
         match command {
-            "focus_left" | "focus_right" | "focus_up" | "focus_down" => {
-                // Use GetStatus to trigger focus management logic in window manager
-                Ok(Command::GetStatus)
-            }
-            "move_left" | "move_right" | "move_up" | "move_down" => {
-                // Use ToggleLayout to trigger window rearrangement
-                Ok(Command::ToggleLayout)
-            }
-            "close_window" => {
-                // Use ListWindows to trigger focus detection and close current window
-                Ok(Command::ListWindows)
-            }
+            "focus_left" => Ok(Command::FocusDirection(Direction::Left)),
+            "focus_right" => Ok(Command::FocusDirection(Direction::Right)),
+            "focus_up" => Ok(Command::FocusDirection(Direction::Up)),
+            "focus_down" => Ok(Command::FocusDirection(Direction::Down)),
+            "move_left" => Ok(Command::MoveDirection(Direction::Left)),
+            "move_right" => Ok(Command::MoveDirection(Direction::Right)),
+            "move_up" => Ok(Command::MoveDirection(Direction::Up)),
+            "move_down" => Ok(Command::MoveDirection(Direction::Down)),
+            "close_window" => Ok(Command::CloseFocusedWindow),
             "toggle_layout" => Ok(Command::ToggleLayout),
-            "toggle_float" => Ok(Command::ToggleLayout),
-            "toggle_fullscreen" => Ok(Command::ToggleLayout),
-            "swap_main" => Ok(Command::ToggleLayout),
+            "toggle_float" => Ok(Command::ToggleFloat),
+            "toggle_fullscreen" => Ok(Command::ToggleFullscreen),
+            "swap_main" => Ok(Command::SwapMain),
             "restart" => Ok(Command::ReloadConfig),
             "exec" => {
                 if parts.len() > 1 {
@@ -346,6 +451,15 @@ impl HotkeyManager {
                 }
             }
             _ => Err(anyhow::anyhow!("Unknown action: {}", action)),
+        }
+    }
+}
+
+// Global callback function for rdev - must be a function pointer
+fn global_hotkey_callback(event: Event) {
+    if let Some(sender) = GLOBAL_HOTKEY_SENDER.get() {
+        if let Err(_) = sender.send(event) {
+            // Channel is closed, ignore the error
         }
     }
 }

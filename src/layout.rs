@@ -416,6 +416,10 @@ impl LayoutManager {
             LayoutType::Float => LayoutType::BSP,
         };
     }
+    
+    pub fn get_current_layout(&self) -> &LayoutType {
+        &self.current_layout
+    }
 
     pub fn adjust_split_ratio(&mut self, delta: f64) {
         self.split_ratio = (self.split_ratio + delta).max(0.1).min(0.9);

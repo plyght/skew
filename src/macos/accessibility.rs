@@ -45,6 +45,7 @@ const kAXPressAction: &str = "AXPress";
 pub struct AccessibilityManager {
     system_element: AXUIElementRef,
     window_cache: HashMap<WindowId, (i32, AXUIElementRef)>, // WindowId -> (pid, element)
+    last_cache_update: std::time::Instant,
 }
 
 impl AccessibilityManager {
@@ -65,6 +66,7 @@ impl AccessibilityManager {
         Ok(Self {
             system_element,
             window_cache: HashMap::new(),
+            last_cache_update: std::time::Instant::now(),
         })
     }
 
@@ -115,8 +117,15 @@ impl AccessibilityManager {
         }
     }
 
-    pub fn focus_window(&self, window_id: WindowId) -> Result<()> {
+    pub fn focus_window(&mut self, window_id: WindowId) -> Result<()> {
         debug!("Focusing window {:?} via Accessibility API", window_id);
+
+        // Try to refresh cache if window not found and cache is stale
+        if !self.window_cache.contains_key(&window_id) {
+            if let Err(e) = self.refresh_window_cache() {
+                warn!("Failed to refresh window cache: {}", e);
+            }
+        }
 
         if let Some((_pid, element)) = self.window_cache.get(&window_id) {
             unsafe {
@@ -130,14 +139,21 @@ impl AccessibilityManager {
                 }
             }
         } else {
-            warn!("Window {:?} not found in cache", window_id);
+            debug!("Window {:?} not found in accessibility cache - may be a non-manageable window", window_id);
         }
 
         Ok(())
     }
 
-    pub fn move_window(&self, window_id: WindowId, _rect: Rect) -> Result<()> {
+    pub fn move_window(&mut self, window_id: WindowId, _rect: Rect) -> Result<()> {
         debug!("Moving window {:?} via Accessibility API", window_id);
+
+        // Try to refresh cache if window not found and cache is stale
+        if !self.window_cache.contains_key(&window_id) {
+            if let Err(e) = self.refresh_window_cache() {
+                warn!("Failed to refresh window cache: {}", e);
+            }
+        }
 
         if let Some((_pid, _element)) = self.window_cache.get(&window_id) {
             // Window movement implementation would require complex Core Foundation dictionary creation
@@ -146,14 +162,21 @@ impl AccessibilityManager {
                 "Window movement not yet fully implemented - requires proper CF dictionary setup"
             );
         } else {
-            warn!("Window {:?} not found in cache", window_id);
+            debug!("Window {:?} not found in accessibility cache - may be a non-manageable window", window_id);
         }
 
         Ok(())
     }
 
-    pub fn close_window(&self, window_id: WindowId) -> Result<()> {
+    pub fn close_window(&mut self, window_id: WindowId) -> Result<()> {
         debug!("Closing window {:?} via Accessibility API", window_id);
+
+        // Try to refresh cache if window not found and cache is stale
+        if !self.window_cache.contains_key(&window_id) {
+            if let Err(e) = self.refresh_window_cache() {
+                warn!("Failed to refresh window cache: {}", e);
+            }
+        }
 
         if let Some((_, element)) = self.window_cache.get(&window_id) {
             unsafe {
@@ -184,9 +207,28 @@ impl AccessibilityManager {
                 }
             }
         } else {
-            warn!("Window {:?} not found in cache", window_id);
+            debug!("Window {:?} not found in accessibility cache - may be a non-manageable window", window_id);
         }
 
+        Ok(())
+    }
+
+    pub fn refresh_window_cache(&mut self) -> Result<()> {
+        debug!("Refreshing accessibility window cache");
+        
+        let now = std::time::Instant::now();
+        // Only refresh if it's been more than 100ms since last refresh
+        if now.duration_since(self.last_cache_update) < std::time::Duration::from_millis(100) {
+            return Ok(());
+        }
+
+        // For now, we'll use a simple approach - clear the cache and let it be rebuilt on demand
+        // A more sophisticated approach would enumerate all applications and their windows
+        // via the Accessibility API and map them to CGWindow IDs
+        self.window_cache.clear();
+        self.last_cache_update = now;
+        
+        debug!("Accessibility window cache refreshed");
         Ok(())
     }
 }
