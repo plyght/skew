@@ -143,7 +143,7 @@ fn default_hotkeys() -> std::collections::HashMap<String, String> {
     // Layout controls - ctrl + alt combinations
     bindings.insert("ctrl+alt+space".to_string(), "toggle_layout".to_string());
     bindings.insert("ctrl+alt+f".to_string(), "toggle_float".to_string());
-    bindings.insert("ctrl+alt+r".to_string(), "rotate_layout".to_string());
+    bindings.insert("ctrl+alt+r".to_string(), "toggle_layout".to_string());
 
     // Window actions - alt + action keys
     bindings.insert("alt+return".to_string(), "exec:terminal".to_string());
@@ -401,13 +401,17 @@ impl PluginConfig {
         if !self.plugin_dir.is_empty() {
             let plugin_path = std::path::Path::new(&self.plugin_dir);
             if !plugin_path.exists() {
-                return Err(anyhow::anyhow!(
-                    "plugin_dir '{}' does not exist",
-                    self.plugin_dir
-                ));
+                std::fs::create_dir_all(plugin_path).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Cannot create plugin directory '{}': {}",
+                        self.plugin_dir,
+                        e
+                    )
+                })?;
+                log::info!("Created plugin directory at '{}'", self.plugin_dir);
             }
 
-            if !plugin_path.is_dir() {
+            if plugin_path.exists() && !plugin_path.is_dir() {
                 return Err(anyhow::anyhow!(
                     "plugin_dir '{}' is not a directory",
                     self.plugin_dir
