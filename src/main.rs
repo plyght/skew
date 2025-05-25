@@ -48,15 +48,35 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Stop) => {
             info!("Stopping Skew window manager");
-            // TODO: Send stop command via IPC
+            let config = Config::load(&config_path)?;
+            if skew::ipc::IpcClient::check_connection(&config.ipc.socket_path).await {
+                skew::ipc::IpcClient::run_command(&config.ipc.socket_path, "quit", vec![]).await?;
+            } else {
+                eprintln!("✗ Daemon is not running");
+                std::process::exit(1);
+            }
         }
         Some(Commands::Reload) => {
             info!("Reloading configuration");
-            // TODO: Send reload command via IPC
+            let config = Config::load(&config_path)?;
+            if skew::ipc::IpcClient::check_connection(&config.ipc.socket_path).await {
+                skew::ipc::IpcClient::run_command(&config.ipc.socket_path, "reload", vec![])
+                    .await?;
+            } else {
+                eprintln!("✗ Daemon is not running");
+                std::process::exit(1);
+            }
         }
         Some(Commands::Status) => {
             info!("Getting window manager status");
-            // TODO: Query status via IPC
+            let config = Config::load(&config_path)?;
+            if skew::ipc::IpcClient::check_connection(&config.ipc.socket_path).await {
+                skew::ipc::IpcClient::run_command(&config.ipc.socket_path, "status", vec![])
+                    .await?;
+            } else {
+                eprintln!("✗ Daemon is not running");
+                std::process::exit(1);
+            }
         }
     }
 

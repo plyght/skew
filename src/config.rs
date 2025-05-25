@@ -133,27 +133,27 @@ fn default_hotkeys() -> std::collections::HashMap<String, String> {
     bindings.insert("alt+j".to_string(), "focus_down".to_string());
     bindings.insert("alt+k".to_string(), "focus_up".to_string());
     bindings.insert("alt+l".to_string(), "focus_right".to_string());
-    
+
     // Window movement - alt + shift + hjkl
     bindings.insert("alt+shift+h".to_string(), "move_left".to_string());
     bindings.insert("alt+shift+j".to_string(), "move_down".to_string());
     bindings.insert("alt+shift+k".to_string(), "move_up".to_string());
     bindings.insert("alt+shift+l".to_string(), "move_right".to_string());
-    
+
     // Layout controls - ctrl + alt combinations
     bindings.insert("ctrl+alt+space".to_string(), "toggle_layout".to_string());
     bindings.insert("ctrl+alt+f".to_string(), "toggle_float".to_string());
     bindings.insert("ctrl+alt+r".to_string(), "rotate_layout".to_string());
-    
+
     // Window actions - alt + action keys
     bindings.insert("alt+return".to_string(), "exec:terminal".to_string());
     bindings.insert("alt+w".to_string(), "close_window".to_string());
     bindings.insert("alt+m".to_string(), "toggle_fullscreen".to_string());
-    
+
     // Advanced - alt + shift + action
     bindings.insert("alt+shift+space".to_string(), "swap_main".to_string());
     bindings.insert("alt+shift+r".to_string(), "restart".to_string());
-    
+
     bindings
 }
 
@@ -164,12 +164,24 @@ impl Config {
         if !path.exists() {
             log::info!("Config file not found at {:?}, using defaults", path);
             let config = Self::default();
+            config.validate()?;
             config.save(path)?;
             return Ok(config);
         }
 
         let content = std::fs::read_to_string(path)?;
         let config: Self = toml::from_str(&content)?;
+
+        // Validate the loaded configuration
+        config.validate().map_err(|e| {
+            anyhow::anyhow!(
+                "Configuration validation failed for '{}': {}",
+                path.display(),
+                e
+            )
+        })?;
+
+        log::info!("Configuration loaded and validated from {:?}", path);
         Ok(config)
     }
 
@@ -187,6 +199,237 @@ impl Config {
 
     pub fn reload<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         *self = Self::load(path)?;
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        self.general.validate()?;
+        self.layout.validate()?;
+        self.focus.validate()?;
+        self.hotkeys.validate()?;
+        self.ipc.validate()?;
+        self.plugins.validate()?;
+        Ok(())
+    }
+}
+
+impl GeneralConfig {
+    pub fn validate(&self) -> Result<()> {
+        if self.gap < 0.0 || self.gap > 100.0 {
+            return Err(anyhow::anyhow!(
+                "gap must be between 0 and 100, got {}",
+                self.gap
+            ));
+        }
+
+        if self.border_width < 0.0 || self.border_width > 20.0 {
+            return Err(anyhow::anyhow!(
+                "border_width must be between 0 and 20, got {}",
+                self.border_width
+            ));
+        }
+
+        if !self.border_color.starts_with('#') || self.border_color.len() != 7 {
+            return Err(anyhow::anyhow!(
+                "border_color must be a valid hex color (e.g., #ff0000), got {}",
+                self.border_color
+            ));
+        }
+
+        if !self.active_border_color.starts_with('#') || self.active_border_color.len() != 7 {
+            return Err(anyhow::anyhow!(
+                "active_border_color must be a valid hex color (e.g., #ff0000), got {}",
+                self.active_border_color
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl LayoutConfig {
+    pub fn validate(&self) -> Result<()> {
+        let valid_layouts = [
+            "bsp", "stack", "float", "grid", "spiral", "column", "monocle",
+        ];
+        if !valid_layouts.contains(&self.default_layout.to_lowercase().as_str()) {
+            return Err(anyhow::anyhow!(
+                "default_layout must be one of {:?}, got '{}'",
+                valid_layouts,
+                self.default_layout
+            ));
+        }
+
+        if self.split_ratio <= 0.0 || self.split_ratio >= 1.0 {
+            return Err(anyhow::anyhow!(
+                "split_ratio must be between 0 and 1, got {}",
+                self.split_ratio
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl FocusConfig {
+    pub fn validate(&self) -> Result<()> {
+        if self.mouse_delay_ms > 10000 {
+            return Err(anyhow::anyhow!(
+                "mouse_delay_ms should not exceed 10000ms, got {}",
+                self.mouse_delay_ms
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl HotkeyConfig {
+    pub fn validate(&self) -> Result<()> {
+        let valid_modifiers = [
+            "alt", "option", "ctrl", "control", "shift", "cmd", "command",
+        ];
+        if !valid_modifiers.contains(&self.mod_key.to_lowercase().as_str()) {
+            return Err(anyhow::anyhow!(
+                "mod_key must be one of {:?}, got '{}'",
+                valid_modifiers,
+                self.mod_key
+            ));
+        }
+
+        // Validate hotkey bindings format
+        for (key_combo, action) in &self.bindings {
+            // Check key combination format
+            if key_combo.is_empty() {
+                return Err(anyhow::anyhow!("Empty key combination not allowed"));
+            }
+
+            let parts: Vec<&str> = key_combo.split('+').collect();
+            if parts.len() < 1 {
+                return Err(anyhow::anyhow!(
+                    "Invalid key combination format: '{}'",
+                    key_combo
+                ));
+            }
+
+            // Validate modifiers in the key combination
+            for part in &parts[..parts.len().saturating_sub(1)] {
+                if !valid_modifiers.contains(&part.to_lowercase().as_str()) {
+                    return Err(anyhow::anyhow!(
+                        "Invalid modifier '{}' in key combination '{}'",
+                        part,
+                        key_combo
+                    ));
+                }
+            }
+
+            // Validate action format
+            if action.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "Empty action not allowed for key combination '{}'",
+                    key_combo
+                ));
+            }
+
+            let action_parts: Vec<&str> = action.split(':').collect();
+            let action_name = action_parts[0];
+            let valid_actions = [
+                "focus_left",
+                "focus_right",
+                "focus_up",
+                "focus_down",
+                "move_left",
+                "move_right",
+                "move_up",
+                "move_down",
+                "close_window",
+                "toggle_layout",
+                "toggle_float",
+                "toggle_fullscreen",
+                "swap_main",
+                "restart",
+                "exec",
+            ];
+
+            if !valid_actions.contains(&action_name) {
+                return Err(anyhow::anyhow!(
+                    "Invalid action '{}' in binding '{}'. Valid actions: {:?}",
+                    action_name,
+                    key_combo,
+                    valid_actions
+                ));
+            }
+
+            // Special validation for exec actions
+            if action_name == "exec" && action_parts.len() < 2 {
+                return Err(anyhow::anyhow!(
+                    "exec action requires an argument: '{}'",
+                    action
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl IpcConfig {
+    pub fn validate(&self) -> Result<()> {
+        if self.socket_path.is_empty() {
+            return Err(anyhow::anyhow!("socket_path cannot be empty"));
+        }
+
+        // Check if parent directory exists or can be created
+        if let Some(parent) = std::path::Path::new(&self.socket_path).parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Cannot create socket directory '{}': {}",
+                        parent.display(),
+                        e
+                    )
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl PluginConfig {
+    pub fn validate(&self) -> Result<()> {
+        if !self.plugin_dir.is_empty() {
+            let plugin_path = std::path::Path::new(&self.plugin_dir);
+            if !plugin_path.exists() {
+                return Err(anyhow::anyhow!(
+                    "plugin_dir '{}' does not exist",
+                    self.plugin_dir
+                ));
+            }
+
+            if !plugin_path.is_dir() {
+                return Err(anyhow::anyhow!(
+                    "plugin_dir '{}' is not a directory",
+                    self.plugin_dir
+                ));
+            }
+        }
+
+        // Validate that enabled plugins exist
+        if !self.plugin_dir.is_empty() {
+            for plugin_name in &self.enabled {
+                let plugin_path =
+                    std::path::Path::new(&self.plugin_dir).join(format!("{}.lua", plugin_name));
+                if !plugin_path.exists() {
+                    return Err(anyhow::anyhow!(
+                        "Plugin '{}' not found at '{}'",
+                        plugin_name,
+                        plugin_path.display()
+                    ));
+                }
+            }
+        }
+
         Ok(())
     }
 }

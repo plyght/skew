@@ -5,7 +5,7 @@ use crate::layout::LayoutManager;
 use crate::macos::MacOSWindowSystem;
 use crate::plugins::PluginManager;
 use crate::{Config, Rect, Result, WindowId};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};

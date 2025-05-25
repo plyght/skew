@@ -19,9 +19,11 @@ name = "skew-cli"
 path = "src/bin/skew-cli.rs"
 
 [dependencies]
-# macOS API bindings (for future implementation)
+# macOS API bindings
 core-graphics = "0.23"
 core-foundation = "0.9"
+cocoa = "0.25"
+objc = "0.2"
 
 # Configuration and serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -45,8 +47,8 @@ thiserror = "1.0"
 libloading = "0.8"
 mlua = { version = "0.9", features = ["lua54", "vendored"], optional = true }
 
-# Hot-key handling (for future implementation)
-# rdev = "0.4"
+# Hot-key handling
+rdev = "0.4"
 
 # Command line interface
 clap = { version = "4.0", features = ["derive"] }

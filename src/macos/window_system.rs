@@ -2,24 +2,113 @@ use super::accessibility::AccessibilityManager;
 use super::cgwindow::CGWindowInfo;
 use crate::window_manager::WindowEvent;
 use crate::{Rect, Result, Window, WindowId};
-use core_graphics::display::{CGDisplayBounds, CGMainDisplayID};
-use log::{debug, error, warn};
+use core_graphics::display::{CGDisplayBounds, CGGetActiveDisplayList, CGMainDisplayID};
+use log::{debug, error, info, warn};
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
+
+#[derive(Debug, Clone)]
+pub struct Display {
+    pub id: u32,
+    pub rect: Rect,
+    pub is_main: bool,
+    pub name: String,
+}
 
 pub struct MacOSWindowSystem {
     accessibility: AccessibilityManager,
     event_sender: mpsc::Sender<WindowEvent>,
+    displays: HashMap<u32, Display>,
 }
 
 impl MacOSWindowSystem {
     pub async fn new(event_sender: mpsc::Sender<WindowEvent>) -> Result<Self> {
         let accessibility = AccessibilityManager::new()?;
+        let displays = Self::get_all_displays()?;
 
         Ok(Self {
             accessibility,
             event_sender,
+            displays,
         })
+    }
+
+    fn get_all_displays() -> Result<HashMap<u32, Display>> {
+        unsafe {
+            let mut display_count: u32 = 0;
+            let mut display_list: Vec<u32> = vec![0; 32]; // Max 32 displays
+
+            let result = CGGetActiveDisplayList(
+                display_list.len() as u32,
+                display_list.as_mut_ptr(),
+                &mut display_count,
+            );
+
+            if result != 0 {
+                warn!("Failed to get display list, using main display only");
+                // Fall back to main display only
+                let main_display_id = CGMainDisplayID();
+                let bounds = CGDisplayBounds(main_display_id);
+                let mut displays = HashMap::new();
+                displays.insert(
+                    main_display_id,
+                    Display {
+                        id: main_display_id,
+                        rect: Rect::new(
+                            bounds.origin.x,
+                            bounds.origin.y,
+                            bounds.size.width,
+                            bounds.size.height,
+                        ),
+                        is_main: true,
+                        name: "Main Display".to_string(),
+                    },
+                );
+                return Ok(displays);
+            }
+
+            let main_display_id = CGMainDisplayID();
+            let mut displays = HashMap::new();
+
+            info!("Found {} display(s)", display_count);
+
+            for i in 0..display_count as usize {
+                let display_id = display_list[i];
+                let bounds = CGDisplayBounds(display_id);
+                let is_main = display_id == main_display_id;
+
+                let display = Display {
+                    id: display_id,
+                    rect: Rect::new(
+                        bounds.origin.x,
+                        bounds.origin.y,
+                        bounds.size.width,
+                        bounds.size.height,
+                    ),
+                    is_main,
+                    name: if is_main {
+                        "Main Display".to_string()
+                    } else {
+                        format!("Display {}", i + 1)
+                    },
+                };
+
+                info!(
+                    "Display {}: {}x{} at ({}, {}) - {}",
+                    display_id,
+                    display.rect.width,
+                    display.rect.height,
+                    display.rect.x,
+                    display.rect.y,
+                    if display.is_main { "Main" } else { "Secondary" }
+                );
+
+                displays.insert(display_id, display);
+            }
+
+            Ok(displays)
+        }
     }
 
     pub async fn start_monitoring(&self) -> Result<()> {
@@ -88,15 +177,98 @@ impl MacOSWindowSystem {
     }
 
     pub async fn get_screen_rect(&self) -> Result<Rect> {
-        let display_id = unsafe { CGMainDisplayID() };
-        let bounds = unsafe { CGDisplayBounds(display_id) };
+        // Return main display rect for backward compatibility
+        self.get_main_display_rect()
+    }
 
-        Ok(Rect::new(
-            bounds.origin.x,
-            bounds.origin.y,
-            bounds.size.width,
-            bounds.size.height,
-        ))
+    pub fn get_main_display_rect(&self) -> Result<Rect> {
+        let main_display = self
+            .displays
+            .values()
+            .find(|d| d.is_main)
+            .ok_or_else(|| anyhow::anyhow!("No main display found"))?;
+        Ok(main_display.rect.clone())
+    }
+
+    pub fn get_displays(&self) -> &HashMap<u32, Display> {
+        &self.displays
+    }
+
+    pub fn get_display_for_window(&self, window: &Window) -> Option<&Display> {
+        // Find which display contains the center of the window
+        let window_center_x = window.rect.x + window.rect.width / 2.0;
+        let window_center_y = window.rect.y + window.rect.height / 2.0;
+
+        self.displays.values().find(|display| {
+            window_center_x >= display.rect.x
+                && window_center_x < display.rect.x + display.rect.width
+                && window_center_y >= display.rect.y
+                && window_center_y < display.rect.y + display.rect.height
+        })
+    }
+
+    pub fn get_display_by_id(&self, display_id: u32) -> Option<&Display> {
+        self.displays.get(&display_id)
+    }
+
+    pub fn get_windows_by_display<'a>(
+        &self,
+        windows: &'a [Window],
+    ) -> HashMap<u32, Vec<&'a Window>> {
+        let mut windows_by_display: HashMap<u32, Vec<&'a Window>> = HashMap::new();
+
+        // Initialize empty vectors for each display
+        for display_id in self.displays.keys() {
+            windows_by_display.insert(*display_id, Vec::new());
+        }
+
+        // Assign windows to displays
+        for window in windows {
+            if let Some(display) = self.get_display_for_window(window) {
+                windows_by_display
+                    .get_mut(&display.id)
+                    .unwrap()
+                    .push(window);
+            } else {
+                // If window doesn't clearly belong to any display, assign to main display
+                if let Some(main_display) = self.displays.values().find(|d| d.is_main) {
+                    windows_by_display
+                        .get_mut(&main_display.id)
+                        .unwrap()
+                        .push(window);
+                }
+            }
+        }
+
+        windows_by_display
+    }
+
+    pub async fn move_window_to_display(
+        &self,
+        window_id: WindowId,
+        target_display_id: u32,
+    ) -> Result<()> {
+        if let Some(target_display) = self.displays.get(&target_display_id) {
+            // Calculate new position centered on the target display
+            let new_x = target_display.rect.x + target_display.rect.width * 0.1;
+            let new_y = target_display.rect.y + target_display.rect.height * 0.1;
+            let new_width = target_display.rect.width * 0.8;
+            let new_height = target_display.rect.height * 0.8;
+
+            let new_rect = Rect::new(new_x, new_y, new_width, new_height);
+            self.move_window(window_id, new_rect).await
+        } else {
+            Err(anyhow::anyhow!("Display {} not found", target_display_id))
+        }
+    }
+
+    pub fn refresh_displays(&mut self) -> Result<()> {
+        self.displays = Self::get_all_displays()?;
+        info!(
+            "Display configuration refreshed - {} display(s) detected",
+            self.displays.len()
+        );
+        Ok(())
     }
 
     pub async fn focus_window(&self, window_id: WindowId) -> Result<()> {

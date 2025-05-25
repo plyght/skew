@@ -96,9 +96,7 @@ impl IpcServer {
             debug!("Received IPC message: {}", trimmed);
 
             let response = match serde_json::from_str::<IpcMessage>(trimmed) {
-                Ok(message) => {
-                    Self::process_message(message, &command_sender).await
-                }
+                Ok(message) => Self::process_message(message, &command_sender).await,
                 Err(e) => IpcResponse {
                     success: false,
                     message: format!("Invalid JSON: {}", e),
@@ -115,7 +113,8 @@ impl IpcServer {
                         success: false,
                         message: "Internal server error".to_string(),
                         data: None,
-                    }).unwrap_or_else(|_| "{}".to_string())
+                    })
+                    .unwrap_or_else(|_| "{}".to_string())
                 }
             };
 
@@ -144,8 +143,11 @@ impl IpcServer {
         message: IpcMessage,
         command_sender: &mpsc::Sender<Command>,
     ) -> IpcResponse {
-        debug!("Processing command: {} with args: {:?}", message.command, message.args);
-        
+        debug!(
+            "Processing command: {} with args: {:?}",
+            message.command, message.args
+        );
+
         let command = match message.command.as_str() {
             "focus" => {
                 if let Some(id_str) = message.args.get(0) {
@@ -203,7 +205,8 @@ impl IpcServer {
                         _ => {
                             return IpcResponse {
                                 success: false,
-                                message: "move command requires: window_id x y width height".to_string(),
+                                message: "move command requires: window_id x y width height"
+                                    .to_string(),
                                 data: None,
                             };
                         }
@@ -254,7 +257,10 @@ impl IpcServer {
             _ => {
                 return IpcResponse {
                     success: false,
-                    message: format!("Unknown command: '{}'. Use 'help' to see available commands.", message.command),
+                    message: format!(
+                        "Unknown command: '{}'. Use 'help' to see available commands.",
+                        message.command
+                    ),
                     data: None,
                 };
             }
@@ -295,7 +301,7 @@ impl IpcClient {
         };
 
         let message_json = serde_json::to_string(&message)?;
-        
+
         // Send message
         writer.write_all(message_json.as_bytes()).await?;
         writer.write_all(b"\n").await?;
@@ -304,8 +310,13 @@ impl IpcClient {
         // Read response with timeout
         let mut reader = BufReader::new(reader);
         let mut response_line = String::new();
-        
-        match timeout(Duration::from_secs(10), reader.read_line(&mut response_line)).await {
+
+        match timeout(
+            Duration::from_secs(10),
+            reader.read_line(&mut response_line),
+        )
+        .await
+        {
             Ok(Ok(_)) => {
                 let response: IpcResponse = serde_json::from_str(&response_line)?;
                 Ok(response)
@@ -320,11 +331,13 @@ impl IpcClient {
     }
 
     pub async fn focus_window(&self, window_id: WindowId) -> Result<IpcResponse> {
-        self.send_command("focus", vec![window_id.0.to_string()]).await
+        self.send_command("focus", vec![window_id.0.to_string()])
+            .await
     }
 
     pub async fn close_window(&self, window_id: WindowId) -> Result<IpcResponse> {
-        self.send_command("close", vec![window_id.0.to_string()]).await
+        self.send_command("close", vec![window_id.0.to_string()])
+            .await
     }
 
     pub async fn move_window(&self, window_id: WindowId, rect: crate::Rect) -> Result<IpcResponse> {
@@ -337,7 +350,8 @@ impl IpcClient {
                 rect.width.to_string(),
                 rect.height.to_string(),
             ],
-        ).await
+        )
+        .await
     }
 
     pub async fn toggle_layout(&self) -> Result<IpcResponse> {
@@ -369,9 +383,9 @@ impl IpcClient {
 impl IpcClient {
     pub async fn run_command(socket_path: &str, command: &str, args: Vec<String>) -> Result<()> {
         let client = IpcClient::new(socket_path.to_string());
-        
+
         let response = client.send_command(command, args).await?;
-        
+
         if response.success {
             println!("✓ {}", response.message);
             if let Some(data) = response.data {
@@ -381,10 +395,10 @@ impl IpcClient {
             eprintln!("✗ {}", response.message);
             std::process::exit(1);
         }
-        
+
         Ok(())
     }
-    
+
     pub async fn check_connection(socket_path: &str) -> bool {
         let client = IpcClient::new(socket_path.to_string());
         client.ping().await.is_ok()

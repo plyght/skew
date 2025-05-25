@@ -7,6 +7,10 @@ pub enum LayoutType {
     BSP,
     Stack,
     Float,
+    Grid,
+    Spiral,
+    Column,
+    Monocle,
 }
 
 impl LayoutType {
@@ -15,7 +19,23 @@ impl LayoutType {
             "bsp" | "binary" => Self::BSP,
             "stack" | "stacking" => Self::Stack,
             "float" | "floating" => Self::Float,
+            "grid" => Self::Grid,
+            "spiral" => Self::Spiral,
+            "column" | "columns" => Self::Column,
+            "monocle" | "fullscreen" => Self::Monocle,
             _ => Self::BSP,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::BSP => "BSP",
+            Self::Stack => "Stack",
+            Self::Float => "Float",
+            Self::Grid => "Grid",
+            Self::Spiral => "Spiral",
+            Self::Column => "Column",
+            Self::Monocle => "Monocle",
         }
     }
 }
@@ -157,6 +177,12 @@ impl LayoutManager {
             LayoutType::BSP => self.compute_bsp_layout(windows, screen_rect, general_config),
             LayoutType::Stack => self.compute_stack_layout(windows, screen_rect, general_config),
             LayoutType::Float => self.compute_float_layout(windows, screen_rect, general_config),
+            LayoutType::Grid => self.compute_grid_layout(windows, screen_rect, general_config),
+            LayoutType::Spiral => self.compute_spiral_layout(windows, screen_rect, general_config),
+            LayoutType::Column => self.compute_column_layout(windows, screen_rect, general_config),
+            LayoutType::Monocle => {
+                self.compute_monocle_layout(windows, screen_rect, general_config)
+            }
         }
     }
 
@@ -237,11 +263,186 @@ impl LayoutManager {
         windows.iter().map(|w| (w.id, w.rect.clone())).collect()
     }
 
+    fn compute_grid_layout(
+        &self,
+        windows: &[&Window],
+        screen_rect: Rect,
+        general_config: &GeneralConfig,
+    ) -> HashMap<WindowId, Rect> {
+        let mut rects = HashMap::new();
+
+        if windows.is_empty() {
+            return rects;
+        }
+
+        let window_count = windows.len();
+        let cols = (window_count as f64).sqrt().ceil() as usize;
+        let rows = (window_count + cols - 1) / cols;
+
+        let cell_width = (screen_rect.width - general_config.gap * (cols + 1) as f64) / cols as f64;
+        let cell_height =
+            (screen_rect.height - general_config.gap * (rows + 1) as f64) / rows as f64;
+
+        for (i, window) in windows.iter().enumerate() {
+            let row = i / cols;
+            let col = i % cols;
+
+            let x =
+                screen_rect.x + general_config.gap + col as f64 * (cell_width + general_config.gap);
+            let y = screen_rect.y
+                + general_config.gap
+                + row as f64 * (cell_height + general_config.gap);
+
+            let rect = Rect::new(x, y, cell_width, cell_height);
+            rects.insert(window.id, rect);
+        }
+
+        rects
+    }
+
+    fn compute_spiral_layout(
+        &self,
+        windows: &[&Window],
+        screen_rect: Rect,
+        general_config: &GeneralConfig,
+    ) -> HashMap<WindowId, Rect> {
+        let mut rects = HashMap::new();
+
+        if windows.is_empty() {
+            return rects;
+        }
+
+        if windows.len() == 1 {
+            let rect = Rect::new(
+                screen_rect.x + general_config.gap,
+                screen_rect.y + general_config.gap,
+                screen_rect.width - 2.0 * general_config.gap,
+                screen_rect.height - 2.0 * general_config.gap,
+            );
+            rects.insert(windows[0].id, rect);
+            return rects;
+        }
+
+        // Spiral layout: first window takes half the screen, others spiral around
+        let main_rect = Rect::new(
+            screen_rect.x + general_config.gap / 2.0,
+            screen_rect.y + general_config.gap / 2.0,
+            screen_rect.width * self.split_ratio - general_config.gap,
+            screen_rect.height - general_config.gap,
+        );
+        rects.insert(windows[0].id, main_rect);
+
+        if windows.len() > 1 {
+            let side_width = screen_rect.width * (1.0 - self.split_ratio);
+            let side_height_per_window = screen_rect.height / (windows.len() - 1) as f64;
+
+            for (i, window) in windows.iter().skip(1).enumerate() {
+                let rect = Rect::new(
+                    screen_rect.x + screen_rect.width * self.split_ratio + general_config.gap / 2.0,
+                    screen_rect.y + i as f64 * side_height_per_window + general_config.gap / 2.0,
+                    side_width - general_config.gap,
+                    side_height_per_window - general_config.gap,
+                );
+                rects.insert(window.id, rect);
+            }
+        }
+
+        rects
+    }
+
+    fn compute_column_layout(
+        &self,
+        windows: &[&Window],
+        screen_rect: Rect,
+        general_config: &GeneralConfig,
+    ) -> HashMap<WindowId, Rect> {
+        let mut rects = HashMap::new();
+
+        if windows.is_empty() {
+            return rects;
+        }
+
+        let window_width = (screen_rect.width - general_config.gap * (windows.len() + 1) as f64)
+            / windows.len() as f64;
+
+        for (i, window) in windows.iter().enumerate() {
+            let x =
+                screen_rect.x + general_config.gap + i as f64 * (window_width + general_config.gap);
+            let y = screen_rect.y + general_config.gap;
+            let height = screen_rect.height - 2.0 * general_config.gap;
+
+            let rect = Rect::new(x, y, window_width, height);
+            rects.insert(window.id, rect);
+        }
+
+        rects
+    }
+
+    fn compute_monocle_layout(
+        &self,
+        windows: &[&Window],
+        screen_rect: Rect,
+        general_config: &GeneralConfig,
+    ) -> HashMap<WindowId, Rect> {
+        let mut rects = HashMap::new();
+
+        if windows.is_empty() {
+            return rects;
+        }
+
+        // In monocle mode, all windows are fullscreen (only focused one is visible)
+        let fullscreen_rect = Rect::new(
+            screen_rect.x + general_config.gap,
+            screen_rect.y + general_config.gap,
+            screen_rect.width - 2.0 * general_config.gap,
+            screen_rect.height - 2.0 * general_config.gap,
+        );
+
+        for window in windows {
+            rects.insert(window.id, fullscreen_rect.clone());
+        }
+
+        rects
+    }
+
     pub fn toggle_layout(&mut self) {
         self.current_layout = match self.current_layout {
             LayoutType::BSP => LayoutType::Stack,
-            LayoutType::Stack => LayoutType::Float,
+            LayoutType::Stack => LayoutType::Grid,
+            LayoutType::Grid => LayoutType::Spiral,
+            LayoutType::Spiral => LayoutType::Column,
+            LayoutType::Column => LayoutType::Monocle,
+            LayoutType::Monocle => LayoutType::Float,
             LayoutType::Float => LayoutType::BSP,
+        };
+    }
+
+    pub fn adjust_split_ratio(&mut self, delta: f64) {
+        self.split_ratio = (self.split_ratio + delta).max(0.1).min(0.9);
+    }
+
+    pub fn get_split_ratio(&self) -> f64 {
+        self.split_ratio
+    }
+
+    pub fn reset_split_ratio(&mut self) {
+        self.split_ratio = 0.5;
+    }
+
+    pub fn next_layout(&mut self) {
+        self.toggle_layout();
+    }
+
+    pub fn previous_layout(&mut self) {
+        // Cycle backwards through layouts
+        self.current_layout = match self.current_layout {
+            LayoutType::BSP => LayoutType::Float,
+            LayoutType::Stack => LayoutType::BSP,
+            LayoutType::Grid => LayoutType::Stack,
+            LayoutType::Spiral => LayoutType::Grid,
+            LayoutType::Column => LayoutType::Spiral,
+            LayoutType::Monocle => LayoutType::Column,
+            LayoutType::Float => LayoutType::Monocle,
         };
     }
 

@@ -7,11 +7,11 @@ pub struct CGWindowInfo;
 impl CGWindowInfo {
     pub fn get_all_windows() -> Result<Vec<Window>> {
         debug!("Enumerating windows via CGWindowListCopyWindowInfo");
-        
+
         // For now, return some example windows for testing
         // This would be replaced with real CGWindowListCopyWindowInfo calls
         warn!("Using placeholder window data - real CGWindow implementation needs Core Foundation fixes");
-        
+
         Ok(vec![
             Window {
                 id: WindowId(1),
@@ -42,17 +42,20 @@ impl CGWindowInfo {
             },
         ])
     }
-    
+
     pub fn get_window_info_by_id(window_id: u32) -> Result<Option<Window>> {
         let windows = Self::get_all_windows()?;
         Ok(windows.into_iter().find(|w| w.id.0 == window_id))
     }
-    
+
     pub fn get_windows_by_owner(owner_name: &str) -> Result<Vec<Window>> {
         let windows = Self::get_all_windows()?;
-        Ok(windows.into_iter().filter(|w| w.owner == owner_name).collect())
+        Ok(windows
+            .into_iter()
+            .filter(|w| w.owner == owner_name)
+            .collect())
     }
-    
+
     pub fn get_focused_window_info() -> Result<Option<Window>> {
         let windows = Self::get_all_windows()?;
         Ok(windows.into_iter().find(|w| w.is_focused))
@@ -74,7 +77,7 @@ impl WindowCache {
             cache_duration: std::time::Duration::from_millis(100), // Cache for 100ms
         }
     }
-    
+
     pub fn get_windows(&mut self) -> Result<&HashMap<WindowId, Window>> {
         let now = std::time::Instant::now();
         if now.duration_since(self.last_update) > self.cache_duration {
@@ -82,7 +85,7 @@ impl WindowCache {
         }
         Ok(&self.windows)
     }
-    
+
     pub fn refresh(&mut self) -> Result<()> {
         let windows = CGWindowInfo::get_all_windows()?;
         self.windows.clear();
@@ -93,7 +96,7 @@ impl WindowCache {
         debug!("Window cache refreshed with {} windows", self.windows.len());
         Ok(())
     }
-    
+
     pub fn get_window(&mut self, id: WindowId) -> Result<Option<&Window>> {
         let windows = self.get_windows()?;
         Ok(windows.get(&id))
