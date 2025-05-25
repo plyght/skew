@@ -136,10 +136,13 @@ impl AccessibilityManager {
             let mut pid: i32 = 0;
             AXUIElementGetPid(focused_window, &mut pid);
 
-            // Create a more stable window ID using hash of element pointer and PID
-            // This is still imperfect but better than raw pointer casting
-            let ptr_hash = (focused_window as usize).wrapping_mul(2654435761) >> 16;
-            let window_id = WindowId(((pid as u64) << 16 | (ptr_hash as u64 & 0xFFFF)) as u32);
+            // Create a more stable window ID using a better hash of element pointer and PID
+            // Use a stronger hash function with better distribution to reduce collisions
+            let ptr_val = focused_window as usize;
+            let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
+            let hash2 = hash1.wrapping_add(pid as usize).wrapping_mul(0x85ebca6b);
+            let final_hash = (hash2 >> 16) ^ (hash2 & 0xFFFF);
+            let window_id = WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
 
             CFRelease(focused_window);
 
@@ -239,6 +242,9 @@ impl AccessibilityManager {
             debug!("Layout for window {:?}: {:?}", window_id, rect);
         }
 
+        // Build HashMap from WindowId to expected Rect for O(1) lookup
+        let window_id_to_rect: HashMap<WindowId, Rect> = layouts.clone();
+        
         // Get unique PIDs from the windows we need to tile
         let mut unique_pids = std::collections::HashSet::new();
         for window in windows {
@@ -247,53 +253,49 @@ impl AccessibilityManager {
 
         debug!("Getting windows for PIDs: {:?}", unique_pids);
 
-        let mut all_window_elements = Vec::new();
+        // Process each PID to get its windows and match them with WindowIds
         for pid in unique_pids {
             match self.get_windows_for_app_by_pid(pid) {
-                Ok(mut app_windows) => {
+                Ok(app_window_elements) => {
                     debug!(
                         "Successfully got {} window elements for PID {}",
-                        app_windows.len(),
+                        app_window_elements.len(),
                         pid
                     );
-                    all_window_elements.append(&mut app_windows);
+                    
+                    // For each window element from this PID, try to match with our windows
+                    for (element_index, window_element) in app_window_elements.iter().enumerate() {
+                        // Find the corresponding window by matching PID and index within PID
+                        // This is more reliable than global ordering
+                        let windows_for_pid: Vec<&crate::Window> = windows
+                            .iter()
+                            .filter(|w| w.owner_pid == pid)
+                            .collect();
+                        
+                        if element_index < windows_for_pid.len() {
+                            let window_id = windows_for_pid[element_index].id;
+                            
+                            // Look up the rect for this specific window ID
+                            if let Some(rect) = window_id_to_rect.get(&window_id) {
+                                debug!("Moving window {:?} (PID {}, index {}) to {:?}", 
+                                       window_id, pid, element_index, rect);
+                                if let Err(e) = self.set_window_rect(*window_element, *rect) {
+                                    warn!("Failed to move window {:?}: {}", window_id, e);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Clean up retained window elements for this PID
+                    unsafe {
+                        for window_element in app_window_elements {
+                            CFRelease(window_element);
+                        }
+                    }
                 }
                 Err(e) => {
                     warn!("Failed to get windows for PID {}: {}", pid, e);
                 }
-            }
-        }
-
-        // Create a mapping from window elements to their window IDs
-        // This is a best-effort approach since we don't have perfect correlation
-        let mut element_to_window: HashMap<AXUIElementRef, WindowId> = HashMap::new();
-        let mut element_index = 0;
-
-        for window in windows {
-            if element_index < all_window_elements.len() {
-                element_to_window.insert(all_window_elements[element_index], window.id);
-                element_index += 1;
-            }
-        }
-
-        debug!(
-            "Applying {} layouts to {} accessible window elements",
-            layouts.len(),
-            all_window_elements.len()
-        );
-
-        // Apply layouts by looking up the correct window ID
-        for (window_element, window_id) in element_to_window {
-            if let Some(rect) = layouts.get(&window_id) {
-                debug!("Moving window {:?} element to {:?}", window_id, rect);
-                self.set_window_rect(window_element, *rect)?;
-            }
-        }
-
-        // Clean up retained window elements
-        unsafe {
-            for window_element in all_window_elements {
-                CFRelease(window_element);
             }
         }
 
@@ -438,7 +440,7 @@ impl AccessibilityManager {
         }
     }
 
-    #[deprecated(note = "Use enumerate_all_accessible_applications instead")]
+    #[deprecated(since = "1.0.0", note = "Use enumerate_all_accessible_applications instead. Will be removed in v2.0")]
     fn try_get_windows_from_other_apps(
         &mut self,
         _window_elements: &mut Vec<AXUIElementRef>,
@@ -447,7 +449,7 @@ impl AccessibilityManager {
         Ok(())
     }
 
-    #[deprecated(note = "Use get_windows_for_app_by_pid instead")]
+    #[deprecated(since = "1.0.0", note = "Use get_windows_for_app_by_pid instead. Will be removed in v2.0")]
     fn get_windows_for_app_by_name(&mut self, app_name: &str) -> Result<Vec<AXUIElementRef>> {
         debug!(
             "get_windows_for_app_by_name called for {} - use get_windows_for_app_by_pid instead",
@@ -726,11 +728,28 @@ impl AccessibilityManager {
                     // Retain the element before caching it
                     CFRetain(window_element);
 
-                    // Create a more stable window ID by combining PID and window index
-                    // This reduces collisions compared to raw pointer casting
-                    let base_id = (pid as u64) << 16 | (i as u64);
-                    let window_id = WindowId(base_id as u32);
-                    self.window_cache.insert(window_id, (pid, window_element));
+                    // Create a more robust window ID using PID, index, and element pointer
+                    // This approach reduces collisions while maintaining some stability
+                    let ptr_val = window_element as usize;
+                    let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
+                    let hash2 = hash1.wrapping_add(pid as usize).wrapping_add(i as usize).wrapping_mul(0x85ebca6b);
+                    let final_hash = (hash2 >> 16) ^ (hash2 & 0xFFFF);
+                    let window_id = WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
+                    
+                    // Check for collision and warn if detected
+                    if self.window_cache.contains_key(&window_id) {
+                        warn!("WindowId collision detected for {:?} (PID: {}, index: {})", window_id, pid, i);
+                        // Use a fallback ID with timestamp to ensure uniqueness
+                        let timestamp = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+                        let fallback_id = WindowId(((timestamp & 0xFFFFFFFF) as u32).wrapping_add(i as u32));
+                        self.window_cache.insert(fallback_id, (pid, window_element));
+                        debug!("Using fallback WindowId {:?} for collision", fallback_id);
+                    } else {
+                        self.window_cache.insert(window_id, (pid, window_element));
+                    }
                 }
             }
         }

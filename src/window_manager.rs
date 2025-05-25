@@ -114,6 +114,9 @@ impl WindowManager {
 
         // Refresh timer runs every 1000ms to periodically sync window state,
         // while window monitoring runs at 200ms for responsiveness.
+        // TODO: Make both intervals configurable via skew.toml:
+        //   - 'window_refresh_interval_ms' (current: 1000ms, recommended: 500-2000ms)
+        //   - 'window_monitor_interval_ms' (current: 200ms, recommended: 100-500ms)
         // The slower refresh prevents excessive API calls while maintaining accuracy.
         let mut refresh_timer = interval(Duration::from_millis(1000));
 

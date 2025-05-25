@@ -123,6 +123,8 @@ impl MacOSWindowSystem {
         let sender = self.event_sender.clone();
         tokio::spawn(async move {
             // Window monitoring at 200ms provides responsive detection of window changes
+            // TODO: Make this configurable via skew.toml with key 'window_monitor_interval_ms'
+            // Recommended range: 100-500ms (lower = more responsive, higher = less CPU usage)
             // Note: This interval should be configurable in production as it can be
             // performance-intensive with CGWindowListCopyWindowInfo calls
             let mut interval = interval(Duration::from_millis(200));
@@ -324,7 +326,13 @@ impl MacOSWindowSystem {
 
             let workspace = CGSGetActiveSpace(connection);
             if workspace == 0 {
+                // SAFETY: CGSGetActiveSpace can return 0 on failure or when the system
+                // is in an inconsistent state. Falling back to workspace 1 provides
+                // a reasonable default that allows the window manager to continue
+                // functioning, as workspace 1 typically represents the first/main desktop.
+                // This fallback prevents crashes while maintaining basic functionality.
                 warn!("CGSGetActiveSpace returned 0, falling back to workspace 1");
+                debug!("Workspace fallback reason: CGS API returned invalid workspace ID");
                 Ok(1)
             } else {
                 Ok(workspace)
