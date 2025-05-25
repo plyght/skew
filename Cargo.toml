@@ -1,0 +1,66 @@
+[package]
+name = "skew"
+version = "0.1.0"
+edition = "2021"
+authors = ["Skew Contributors"]
+description = "A tiling window manager for macOS"
+license = "MIT"
+
+[[bin]]
+name = "skew"
+path = "src/main.rs"
+
+[[bin]]
+name = "skewd"
+path = "src/daemon.rs"
+
+[[bin]]
+name = "skew-cli"
+path = "src/bin/skew-cli.rs"
+
+[dependencies]
+# macOS API bindings (for future implementation)
+core-graphics = "0.23"
+core-foundation = "0.9"
+
+# Configuration and serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+serde_yaml = "0.9"
+
+# Async runtime and networking
+tokio = { version = "1.0", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Plugin system
+libloading = "0.8"
+mlua = { version = "0.9", features = ["lua54", "vendored"], optional = true }
+
+# Hot-key handling (for future implementation)
+# rdev = "0.4"
+
+# Command line interface
+clap = { version = "4.0", features = ["derive"] }
+
+# Geometry and math
+euclid = "0.22"
+
+[dev-dependencies]
+assert_matches = "1.5"
+
+[features]
+default = ["scripting"]
+scripting = ["mlua"]
+
+[lib]
+name = "skew"
+path = "src/lib.rs"
