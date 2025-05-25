@@ -108,6 +108,10 @@ impl CGWindowInfo {
         let owner = Self::get_string_from_dict(dict, "kCGWindowOwnerName")
             .unwrap_or_else(|| "Unknown".to_string());
         
+        // Extract owner PID
+        let owner_pid = Self::get_number_from_dict(dict, "kCGWindowOwnerPID")
+            .unwrap_or(0.0) as i32;
+        
         // Extract window bounds
         let bounds_dict = Self::get_dict_from_dict(dict, "kCGWindowBounds")?;
         let rect = Self::parse_bounds_dict(bounds_dict)?;
@@ -122,40 +126,53 @@ impl CGWindowInfo {
         // Extract alpha (transparency)
         let alpha = Self::get_number_from_dict(dict, "kCGWindowAlpha").unwrap_or(1.0);
         
+        // Extract workspace ID (macOS Space)
+        let workspace_id = Self::get_number_from_dict(dict, "kCGWindowWorkspace")
+            .unwrap_or(1.0) as u32;
+        
         // Filter out desktop elements, dock, menu bar, etc.
         // Layer 0 is normal application windows
         if layer != 0 || !is_on_screen || alpha < 0.1 {
+            debug!("Filtering out window {} ({}): layer={}, on_screen={}, alpha={}", 
+                   title, owner, layer, is_on_screen, alpha);
             return None;
         }
         
         // Skip very small windows (likely system elements)
         if rect.width < 50.0 || rect.height < 50.0 {
+            debug!("Filtering out small window {} ({}): {}x{}", 
+                   title, owner, rect.width, rect.height);
             return None;
         }
 
-        // Filter out known system applications and problematic windows
-        let system_apps = [
+        // Filter out known system applications that should never be tiled
+        let never_tile_apps = [
             "Dock", "SystemUIServer", "Control Center", "NotificationCenter",
-            "WindowServer", "loginwindow", "Spotlight", "CoreServicesUIAgent"
+            "WindowServer", "loginwindow", "Spotlight", "CoreServicesUIAgent",
+            "Menubar", "Menu Bar", "SystemPreferences"
         ];
         
-        if system_apps.contains(&owner.as_str()) {
+        if never_tile_apps.contains(&owner.as_str()) {
             return None;
         }
 
-        // Skip untitled windows from certain apps that are likely dialogs or panels
-        if title == "Untitled" && (owner.contains("Accessibility") || owner.contains("System")) {
+        // Skip very obvious system panels, but allow most application windows
+        if title.is_empty() && (owner.contains("System") || owner.len() < 3) {
+            debug!("Filtering out system window {} ({})", title, owner);
             return None;
         }
+        
+        debug!("Successfully parsed window: {} ({}) on workspace {}", title, owner, workspace_id);
         
         Some(Window {
             id: WindowId(window_id),
             title,
             owner,
+            owner_pid,
             rect,
             is_minimized: false, // We'll need to check this separately
             is_focused: false,   // We'll need to check this separately
-            workspace_id: 1,     // Default workspace for now
+            workspace_id,        // Now properly detected from macOS
         })
     }
     

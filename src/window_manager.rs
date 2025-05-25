@@ -5,7 +5,7 @@ use crate::layout::LayoutManager;
 use crate::macos::MacOSWindowSystem;
 use crate::plugins::PluginManager;
 use crate::{Config, Rect, Result, WindowId};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
@@ -15,6 +15,7 @@ pub struct Window {
     pub id: WindowId,
     pub title: String,
     pub owner: String,
+    pub owner_pid: i32,
     pub rect: Rect,
     pub is_minimized: bool,
     pub is_focused: bool,
@@ -105,7 +106,13 @@ impl WindowManager {
         self.ipc_server.start().await?;
         self.hotkey_manager.start().await?;
 
-        let mut refresh_timer = interval(Duration::from_millis(100));
+        // Apply layout to existing windows on startup
+        info!("Applying initial layout to existing windows...");
+        self.refresh_windows().await?;
+        self.apply_layout().await?;
+        info!("Initial layout application completed");
+
+        let mut refresh_timer = interval(Duration::from_millis(1000));
 
         loop {
             tokio::select! {
@@ -363,6 +370,19 @@ impl WindowManager {
         let current_windows = self.macos.get_windows().await?;
         let old_count = self.windows.len();
 
+        // Update current workspace
+        match self.macos.get_current_workspace().await {
+            Ok(workspace) => {
+                if workspace != self.current_workspace {
+                    debug!("Workspace changed: {} -> {}", self.current_workspace, workspace);
+                    self.current_workspace = workspace;
+                }
+            }
+            Err(e) => {
+                warn!("Failed to get current workspace: {}", e);
+            }
+        }
+
         // Build a new window map from current windows
         let mut new_windows = HashMap::new();
         for window in current_windows {
@@ -383,18 +403,28 @@ impl WindowManager {
     }
 
     async fn apply_layout(&mut self) -> Result<()> {
+        // Get current macOS workspace/Space
+        let current_workspace = self.macos.get_current_workspace().await?;
+        
+        // Get ALL windows in the current workspace (from all applications)
+        // For now, ignore workspace filtering since workspace detection is unreliable
         let workspace_windows: Vec<&Window> = self
             .windows
             .values()
-            .filter(|w| w.workspace_id == self.current_workspace && !w.is_minimized)
+            .filter(|w| !w.is_minimized)
             .collect();
 
         if workspace_windows.is_empty() {
-            debug!("No windows to layout");
+            debug!("No windows to layout in workspace {}", current_workspace);
             return Ok(());
         }
         
-        debug!("Applying layout to {} windows using {:?}", workspace_windows.len(), self.layout_manager.get_current_layout());
+        debug!("Applying layout to {} windows in workspace {} from all applications using {:?}", 
+               workspace_windows.len(), current_workspace, self.layout_manager.get_current_layout());
+        
+        for window in &workspace_windows {
+            debug!("  Window to layout: {} ({}) at {:?}", window.title, window.owner, window.rect);
+        }
 
         let screen_rect = self.macos.get_screen_rect().await?;
         let layouts = self.layout_manager.compute_layout(
@@ -403,12 +433,45 @@ impl WindowManager {
             &self.config.general,
         );
 
-        for (window_id, rect) in layouts {
-            debug!("Applying layout: moving window {:?} to {:?}", window_id, rect);
-            self.macos.move_window(window_id, rect).await?;
-            // Update our internal window state
-            if let Some(window) = self.windows.get_mut(&window_id) {
-                window.rect = rect;
+        // Use the new move_all_windows method to handle all windows at once
+        let workspace_windows_vec: Vec<Window> = workspace_windows.iter().map(|w| (*w).clone()).collect();
+        match self.macos.move_all_windows(&layouts, &workspace_windows_vec).await {
+            Ok(_) => {
+                debug!("Successfully applied layout to all windows");
+                // Update our internal window state
+                for (window_id, rect) in layouts {
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = rect;
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Failed to apply layout to all windows: {}, falling back to individual moves", e);
+                
+                // Fall back to individual window moves
+                for (window_id, rect) in layouts {
+                    debug!("Applying layout: moving window {:?} to {:?}", window_id, rect);
+                    for attempt in 0..3 {
+                        match self.macos.move_window(window_id, rect).await {
+                            Ok(_) => {
+                                debug!("Successfully moved window {:?} on attempt {}", window_id, attempt + 1);
+                                break;
+                            }
+                            Err(e) if attempt < 2 => {
+                                debug!("Failed to move window {:?} on attempt {}: {}, retrying", window_id, attempt + 1, e);
+                                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                            }
+                            Err(e) => {
+                                warn!("Failed to move window {:?} after 3 attempts: {}", window_id, e);
+                            }
+                        }
+                    }
+                    
+                    // Update our internal window state
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = rect;
+                    }
+                }
             }
         }
 
