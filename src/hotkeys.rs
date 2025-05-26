@@ -55,7 +55,7 @@ impl HotkeyManager {
 
         // Create channel for rdev events
         let (event_sender, event_receiver) = std::sync::mpsc::channel();
-        
+
         // Set global sender (this can only be done once)
         if GLOBAL_HOTKEY_SENDER.set(event_sender).is_err() {
             warn!("Global hotkey sender already initialized");
@@ -84,7 +84,9 @@ impl HotkeyManager {
         drop(running);
 
         // Take the event receiver (can only be done once)
-        let event_receiver = self.event_receiver.take()
+        let event_receiver = self
+            .event_receiver
+            .take()
             .ok_or_else(|| anyhow::anyhow!("Event receiver already taken"))?;
 
         // Clone necessary data for the background tasks
@@ -179,17 +181,15 @@ impl HotkeyManager {
         is_running: Arc<Mutex<bool>>,
     ) {
         info!("Starting hotkey event processing");
-        
+
         while *is_running.lock().unwrap() {
             // Use a timeout to periodically check if we should stop
             match event_receiver.recv_timeout(std::time::Duration::from_millis(100)) {
                 Ok(event) => {
-                    if let Err(e) = Self::handle_rdev_event(
-                        event,
-                        &bindings,
-                        &command_sender,
-                        &pressed_keys,
-                    ).await {
+                    if let Err(e) =
+                        Self::handle_rdev_event(event, &bindings, &command_sender, &pressed_keys)
+                            .await
+                    {
                         error!("Error handling hotkey event: {}", e);
                     }
                 }
@@ -203,10 +203,10 @@ impl HotkeyManager {
                 }
             }
         }
-        
+
         info!("Hotkey event processing stopped");
     }
-    
+
     async fn handle_rdev_event(
         event: rdev::Event,
         bindings: &HashMap<KeyCombination, String>,
@@ -218,11 +218,14 @@ impl HotkeyManager {
                 debug!("Key pressed: {:?}", key);
                 {
                     let mut keys = pressed_keys.lock().unwrap();
-                    if !keys.iter().any(|k| std::mem::discriminant(k) == std::mem::discriminant(&key)) {
+                    if !keys
+                        .iter()
+                        .any(|k| std::mem::discriminant(k) == std::mem::discriminant(&key))
+                    {
                         keys.push(key);
                     }
                 }
-                
+
                 // Check for matching key combinations
                 let keys = pressed_keys.lock().unwrap().clone();
                 if let Some(combination) = Self::match_key_combination(&keys, bindings) {
@@ -244,10 +247,9 @@ impl HotkeyManager {
             }
             _ => {} // Ignore other event types
         }
-        
+
         Ok(())
     }
-
 
     fn match_key_combination(
         pressed_keys: &[Key],
@@ -263,31 +265,36 @@ impl HotkeyManager {
 
     fn is_combination_pressed(combination: &KeyCombination, pressed_keys: &[Key]) -> bool {
         fn key_is_pressed(keys: &[Key], target: &Key) -> bool {
-            keys.iter().any(|k| std::mem::discriminant(k) == std::mem::discriminant(target))
+            keys.iter()
+                .any(|k| std::mem::discriminant(k) == std::mem::discriminant(target))
         }
         for modifier in &combination.modifiers {
             match modifier {
                 ModifierKey::Alt => {
-                    if !key_is_pressed(pressed_keys, &Key::Alt) && 
-                       !key_is_pressed(pressed_keys, &Key::AltGr) {
+                    if !key_is_pressed(pressed_keys, &Key::Alt)
+                        && !key_is_pressed(pressed_keys, &Key::AltGr)
+                    {
                         return false;
                     }
                 }
                 ModifierKey::Ctrl => {
-                    if !key_is_pressed(pressed_keys, &Key::ControlLeft) && 
-                       !key_is_pressed(pressed_keys, &Key::ControlRight) {
+                    if !key_is_pressed(pressed_keys, &Key::ControlLeft)
+                        && !key_is_pressed(pressed_keys, &Key::ControlRight)
+                    {
                         return false;
                     }
                 }
                 ModifierKey::Shift => {
-                    if !key_is_pressed(pressed_keys, &Key::ShiftLeft) && 
-                       !key_is_pressed(pressed_keys, &Key::ShiftRight) {
+                    if !key_is_pressed(pressed_keys, &Key::ShiftLeft)
+                        && !key_is_pressed(pressed_keys, &Key::ShiftRight)
+                    {
                         return false;
                     }
                 }
                 ModifierKey::Cmd => {
-                    if !key_is_pressed(pressed_keys, &Key::MetaLeft) && 
-                       !key_is_pressed(pressed_keys, &Key::MetaRight) {
+                    if !key_is_pressed(pressed_keys, &Key::MetaLeft)
+                        && !key_is_pressed(pressed_keys, &Key::MetaRight)
+                    {
                         return false;
                     }
                 }
@@ -405,7 +412,6 @@ impl HotkeyManager {
     }
 
     fn parse_action(action: &str) -> Result<Command> {
-        
         let parts: Vec<&str> = action.split(':').collect();
         let command = parts[0];
 

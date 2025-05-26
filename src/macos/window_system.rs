@@ -8,6 +8,12 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
 
+// macOS workspace detection
+extern "C" {
+    fn CGSGetActiveSpace(connection: u32) -> u32;
+    fn CGSMainConnectionID() -> u32;
+}
+
 #[derive(Debug, Clone)]
 pub struct Display {
     pub id: u32,
@@ -116,7 +122,12 @@ impl MacOSWindowSystem {
 
         let sender = self.event_sender.clone();
         tokio::spawn(async move {
-            let mut interval = interval(Duration::from_millis(500));
+            // Window monitoring at 200ms provides responsive detection of window changes
+            // TODO: Make this configurable via skew.toml with key 'window_monitor_interval_ms'
+            // Recommended range: 100-500ms (lower = more responsive, higher = less CPU usage)
+            // Note: This interval should be configurable in production as it can be
+            // performance-intensive with CGWindowListCopyWindowInfo calls
+            let mut interval = interval(Duration::from_millis(200));
             let mut last_windows = Vec::new();
 
             loop {
@@ -124,6 +135,13 @@ impl MacOSWindowSystem {
 
                 match CGWindowInfo::get_all_windows() {
                     Ok(current_windows) => {
+                        debug!("Window scan found {} windows", current_windows.len());
+                        for window in &current_windows {
+                            debug!(
+                                "Window: {} ({}), workspace: {}, rect: {:?}",
+                                window.title, window.owner, window.workspace_id, window.rect
+                            );
+                        }
                         Self::detect_window_changes(&sender, &last_windows, &current_windows).await;
                         last_windows = current_windows;
                     }
@@ -144,6 +162,10 @@ impl MacOSWindowSystem {
     ) {
         for new_window in new_windows {
             if !old_windows.iter().any(|w| w.id == new_window.id) {
+                debug!(
+                    "New window detected: {} ({})",
+                    new_window.title, new_window.owner
+                );
                 let _ = sender
                     .send(WindowEvent::WindowCreated(new_window.clone()))
                     .await;
@@ -279,11 +301,42 @@ impl MacOSWindowSystem {
         self.accessibility.move_window(window_id, rect)
     }
 
+    pub async fn move_all_windows(
+        &mut self,
+        layouts: &std::collections::HashMap<WindowId, Rect>,
+        windows: &[crate::Window],
+    ) -> Result<()> {
+        self.accessibility.move_all_windows(layouts, windows)
+    }
+
     pub async fn close_window(&mut self, window_id: WindowId) -> Result<()> {
         self.accessibility.close_window(window_id)
     }
 
     pub async fn get_focused_window(&self) -> Result<Option<WindowId>> {
         self.accessibility.get_focused_window()
+    }
+
+    pub async fn get_current_workspace(&self) -> Result<u32> {
+        unsafe {
+            let connection = CGSMainConnectionID();
+            if connection == 0 {
+                return Err(anyhow::anyhow!("Failed to get main connection ID"));
+            }
+
+            let workspace = CGSGetActiveSpace(connection);
+            if workspace == 0 {
+                // SAFETY: CGSGetActiveSpace can return 0 on failure or when the system
+                // is in an inconsistent state. Falling back to workspace 1 provides
+                // a reasonable default that allows the window manager to continue
+                // functioning, as workspace 1 typically represents the first/main desktop.
+                // This fallback prevents crashes while maintaining basic functionality.
+                warn!("CGSGetActiveSpace returned 0, falling back to workspace 1");
+                debug!("Workspace fallback reason: CGS API returned invalid workspace ID");
+                Ok(1)
+            } else {
+                Ok(workspace)
+            }
+        }
     }
 }
