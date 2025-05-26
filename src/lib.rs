@@ -5,6 +5,7 @@ pub mod ipc;
 pub mod layout;
 pub mod macos;
 pub mod plugins;
+pub mod snap;
 pub mod window_manager;
 
 pub use config::Config;

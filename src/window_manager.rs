@@ -4,6 +4,7 @@ use crate::ipc::IpcServer;
 use crate::layout::LayoutManager;
 use crate::macos::MacOSWindowSystem;
 use crate::plugins::PluginManager;
+use crate::snap::SnapManager;
 use crate::{Config, Rect, Result, WindowId};
 use log::{debug, error, info, warn};
 use std::collections::HashMap;
@@ -51,6 +52,7 @@ pub enum Command {
     ListWindows,
     GetStatus,
     Quit,
+    CheckSnapDragEnd(WindowId, Rect),
 }
 
 pub struct WindowManager {
@@ -64,6 +66,7 @@ pub struct WindowManager {
     ipc_server: IpcServer,
     hotkey_manager: HotkeyManager,
     plugin_manager: PluginManager,
+    snap_manager: SnapManager,
 
     event_rx: mpsc::Receiver<WindowEvent>,
     command_rx: mpsc::Receiver<Command>,
@@ -81,6 +84,10 @@ impl WindowManager {
         let ipc_server = IpcServer::new(&config.ipc, command_tx.clone()).await?;
         let hotkey_manager = HotkeyManager::new(&config.hotkeys, command_tx.clone())?;
         let plugin_manager = PluginManager::new(&config.plugins)?;
+        
+        // Initialize snap manager with screen rect
+        let screen_rect = macos.get_screen_rect().await?;
+        let snap_manager = SnapManager::new(screen_rect, 50.0); // 50px snap threshold
 
         Ok(Self {
             config,
@@ -92,6 +99,7 @@ impl WindowManager {
             ipc_server,
             hotkey_manager,
             plugin_manager,
+            snap_manager,
             event_rx,
             command_rx,
             command_tx,
@@ -158,7 +166,11 @@ impl WindowManager {
             }
             WindowEvent::WindowMoved(id, new_rect) => {
                 if let Some(window) = self.windows.get_mut(&id) {
+                    let old_rect = window.rect;
                     window.rect = new_rect;
+                    
+                    // Handle snap logic for mouse dragging
+                    self.handle_window_move_snap(id, old_rect, new_rect).await?;
                 }
             }
             WindowEvent::WindowResized(id, new_rect) => {
@@ -316,6 +328,9 @@ impl WindowManager {
             Command::Quit => {
                 info!("Shutting down window manager");
                 return Err(anyhow::anyhow!("Quit requested"));
+            }
+            Command::CheckSnapDragEnd(window_id, rect) => {
+                self.handle_snap_drag_end(window_id, rect).await?;
             }
         }
 
@@ -515,6 +530,92 @@ impl WindowManager {
             }
         }
 
+        Ok(())
+    }
+
+    async fn handle_window_move_snap(&mut self, window_id: WindowId, old_rect: Rect, new_rect: Rect) -> Result<()> {
+        // Calculate movement distance to detect if this is a significant move
+        let dx = new_rect.x - old_rect.x;
+        let dy = new_rect.y - old_rect.y;
+        let movement_distance = (dx * dx + dy * dy).sqrt();
+        
+        // Only track moves that are significant and not from our own layout operations
+        if movement_distance > 20.0 {  // Higher threshold
+            debug!("Significant movement detected for window {:?}: {:.1}px", window_id, movement_distance);
+            
+            if !self.snap_manager.is_window_dragging(window_id) {
+                debug!("Starting drag tracking for window {:?}", window_id);
+                self.snap_manager.start_window_drag(window_id, old_rect);
+                
+                // Schedule a check for drag end
+                let command_tx = self.command_tx.clone();
+                let window_id_copy = window_id;
+                let new_rect_copy = new_rect;
+                
+                tokio::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+                    if let Err(e) = command_tx.send(Command::CheckSnapDragEnd(window_id_copy, new_rect_copy)).await {
+                        debug!("Failed to send snap check command: {}", e);
+                    }
+                });
+            } else {
+                self.snap_manager.update_window_drag(window_id, new_rect);
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn handle_snap_drag_end(&mut self, window_id: WindowId, current_rect: Rect) -> Result<()> {
+        // Only process if window is still being dragged
+        if self.snap_manager.is_window_dragging(window_id) {
+            // Check if there's a snap target
+            if let Some(snap_rect) = self.snap_manager.end_window_drag(window_id, current_rect) {
+                // Check if the window is already very close to the snap position to avoid redundant moves
+                let dx = (snap_rect.x - current_rect.x).abs();
+                let dy = (snap_rect.y - current_rect.y).abs();
+                let dw = (snap_rect.width - current_rect.width).abs();
+                let dh = (snap_rect.height - current_rect.height).abs();
+                
+                // Only snap if there's a meaningful difference (> 5 pixels)
+                if dx > 5.0 || dy > 5.0 || dw > 5.0 || dh > 5.0 {
+                    debug!("Snapping window {:?} to {:?}", window_id, snap_rect);
+                    
+                    // Move the window to snap position
+                    self.macos.move_window(window_id, snap_rect).await?;
+                    
+                    // Update our internal state
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = snap_rect;
+                    }
+                } else {
+                    debug!("Window {:?} already close to snap position, skipping move", window_id);
+                }
+            } else {
+                debug!("No snap target found for window {:?}", window_id);
+            }
+            
+            // Always clear the drag state when we're done
+            self.snap_manager.clear_drag_state(window_id);
+        }
+        
+        Ok(())
+    }
+
+    async fn update_layout_for_manual_move(&mut self, window_id: WindowId, new_rect: Rect) -> Result<()> {
+        // For now, we'll just apply the existing layout logic
+        // In a more sophisticated implementation, we might update the BSP tree
+        // to reflect the manual positioning
+        debug!("Window {:?} manually moved to {:?}, updating layout", window_id, new_rect);
+        
+        // You could implement logic here to:
+        // 1. Remove the window from its current position in the BSP tree
+        // 2. Find where it should be placed based on its new position
+        // 3. Rebuild the tree structure accordingly
+        
+        // For now, just ensure the layout is consistent
+        self.apply_layout().await?;
+        
         Ok(())
     }
 }

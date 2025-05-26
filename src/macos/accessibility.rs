@@ -196,8 +196,10 @@ impl AccessibilityManager {
             result?;
             debug!("Successfully moved window {:?} to {:?}", window_id, rect);
         } else {
-            warn!(
-                "Could not find accessibility element for window {:?}",
+            // Don't fail the operation if we can't find the window - it might have been closed
+            // or the accessibility cache might be stale. Just log a warning and continue.
+            debug!(
+                "Could not find accessibility element for window {:?}, skipping move",
                 window_id
             );
         }
@@ -226,7 +228,7 @@ impl AccessibilityManager {
             }
         }
 
-        debug!("Window {:?} not found in accessibility cache", window_id);
+        warn!("Window {:?} not found in accessibility cache", window_id);
         Ok(None)
     }
 

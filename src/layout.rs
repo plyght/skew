@@ -111,7 +111,8 @@ impl BSPNode {
     fn insert_window_with_depth(&mut self, window_id: WindowId, split_ratio: f64, depth: usize) {
         if self.is_leaf() {
             if let Some(existing_id) = self.window_id {
-                // Alternate split direction based on depth
+                // For spiral layout: First split is vertical (horizontal = true), then alternate
+                // This creates the i3/sway-like pattern where new windows go right, then down
                 let should_split_horizontal = depth % 2 == 0;
                 
                 // Convert this leaf into a container
@@ -119,7 +120,7 @@ impl BSPNode {
                 self.split_ratio = split_ratio;
                 self.is_horizontal = should_split_horizontal;
                 
-                // Create child nodes
+                // Create child nodes - put existing window on left/top, new window on right/bottom
                 self.left = Some(Box::new(BSPNode::new_leaf(existing_id, Rect::new(0.0, 0.0, 0.0, 0.0))));
                 self.right = Some(Box::new(BSPNode::new_leaf(window_id, Rect::new(0.0, 0.0, 0.0, 0.0))));
                 
@@ -129,22 +130,16 @@ impl BSPNode {
                 self.window_id = Some(window_id);
             }
         } else {
-            // Find the best insertion point by comparing subtree sizes
-            let left_size = self.left.as_ref().map_or(0, |n| n.count_windows());
-            let right_size = self.right.as_ref().map_or(0, |n| n.count_windows());
-            
-            // Insert into the smaller subtree to maintain balance
-            if left_size <= right_size {
-                if let Some(ref mut left) = self.left {
-                    left.insert_window_with_depth(window_id, split_ratio, depth + 1);
-                }
-            } else {
-                if let Some(ref mut right) = self.right {
-                    right.insert_window_with_depth(window_id, split_ratio, depth + 1);
-                }
+            // For spiral behavior, always insert into the rightmost/bottommost position
+            // This creates the spiral downward/rightward pattern
+            if let Some(ref mut right) = self.right {
+                right.insert_window_with_depth(window_id, split_ratio, depth + 1);
+            } else if let Some(ref mut left) = self.left {
+                left.insert_window_with_depth(window_id, split_ratio, depth + 1);
             }
         }
     }
+
 
     fn count_windows(&self) -> usize {
         if self.is_leaf() {
