@@ -74,6 +74,8 @@ pub struct WindowManager {
 
     // Track windows being moved programmatically to avoid snap conflicts
     programmatically_moving: std::collections::HashSet<WindowId>,
+    // Handle for pending drag end timer to allow cancellation
+    pending_drag_end: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl WindowManager {
@@ -107,6 +109,7 @@ impl WindowManager {
             command_rx,
             command_tx,
             programmatically_moving: std::collections::HashSet::new(),
+            pending_drag_end: None,
         })
     }
 
@@ -577,17 +580,21 @@ impl WindowManager {
                 window_id, movement_distance, old_rect, new_rect
             );
 
+            // Cancel any in-flight drag-end timer
+            if let Some(handle) = self.pending_drag_end.take() {
+                handle.abort();
+            }
+
             if !self.snap_manager.is_window_dragging(window_id) {
                 info!("🚀 STARTING DRAG TRACKING for window {:?}", window_id);
                 self.snap_manager.start_window_drag(window_id, old_rect);
 
-                // Schedule multiple checks for drag end with shorter intervals
+                // Schedule check for drag end
                 let command_tx = self.command_tx.clone();
                 let window_id_copy = window_id;
                 let new_rect_copy = new_rect;
 
-                // Check after a shorter delay for more responsive detection
-                tokio::spawn(async move {
+                let handle = tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                     info!("⏰ SENDING DRAG END CHECK for window {:?}", window_id_copy);
                     if let Err(e) = command_tx
@@ -597,16 +604,17 @@ impl WindowManager {
                         warn!("Failed to send snap check command: {}", e);
                     }
                 });
+                self.pending_drag_end = Some(handle);
             } else {
                 info!("⏳ CONTINUING DRAG for window {:?}", window_id);
                 self.snap_manager.update_window_drag(window_id, new_rect);
 
-                // Cancel previous timer and schedule a new one
+                // Schedule a new drag end check
                 let command_tx = self.command_tx.clone();
                 let window_id_copy = window_id;
                 let new_rect_copy = new_rect;
 
-                tokio::spawn(async move {
+                let handle = tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
                     info!(
                         "⏰ SENDING DRAG END CHECK (continuation) for window {:?}",
@@ -619,6 +627,7 @@ impl WindowManager {
                         warn!("Failed to send snap check command: {}", e);
                     }
                 });
+                self.pending_drag_end = Some(handle);
             }
         } else {
             debug!(

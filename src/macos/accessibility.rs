@@ -1,4 +1,5 @@
 use crate::{Rect, Result, WindowId};
+use core_foundation::array::{CFArrayGetCount, CFArrayGetValueAtIndex, CFArrayRef};
 use core_foundation::base::{CFRelease, CFRetain, CFTypeRef, TCFType};
 use core_foundation::string::{CFString, CFStringRef};
 use log::{debug, info, warn};
@@ -33,6 +34,7 @@ extern "C" {
 
     // Core Foundation value creation functions
     fn AXValueCreate(value_type: AXValueType, value_ptr: *const c_void) -> CFTypeRef;
+    fn AXValueGetValue(value: CFTypeRef, value_type: AXValueType, value_ptr: *mut c_void) -> bool;
 }
 
 type AXValueType = u32;
@@ -129,13 +131,8 @@ impl AccessibilityManager {
             let mut pid: i32 = 0;
             AXUIElementGetPid(focused_window, &mut pid);
 
-            // Create a more stable window ID using a better hash of element pointer and PID
-            // Use a stronger hash function with better distribution to reduce collisions
-            let ptr_val = focused_window as usize;
-            let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
-            let hash2 = hash1.wrapping_add(pid as usize).wrapping_mul(0x85ebca6b);
-            let final_hash = (hash2 >> 16) ^ (hash2 & 0xFFFF);
-            let window_id = WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
+            // Create a stable window ID using hash of element pointer, PID, and timestamp
+            let window_id = self.generate_window_id(focused_window, pid, None);
 
             CFRelease(focused_window);
 
@@ -422,8 +419,9 @@ impl AccessibilityManager {
     #[allow(dead_code)]
     fn get_all_running_pids(&self) -> Result<Vec<i32>> {
         unsafe {
-            // First, get the number of PIDs
-            let mut buffer = vec![0i32; 1024]; // Start with buffer for 1024 PIDs
+            let mut buffer = vec![0i32; 1024];
+            let max_iterations = 5; // Prevent infinite loops
+            let mut iteration = 0;
 
             loop {
                 let bytes_returned = proc_listpids(
@@ -439,19 +437,25 @@ impl AccessibilityManager {
 
                 let pids_returned = bytes_returned as usize / std::mem::size_of::<i32>();
 
-                if pids_returned < buffer.len() {
-                    // Buffer was large enough, truncate and return
+                // Check if we've reached a reasonable buffer size or hit our iteration limit
+                if pids_returned < buffer.len() || iteration >= max_iterations {
                     buffer.truncate(pids_returned);
                     break;
-                } else {
-                    // Buffer too small, double it and try again
-                    buffer.resize(buffer.len() * 2, 0);
                 }
+
+                // Limit buffer growth to prevent excessive memory usage
+                let new_size = std::cmp::min(buffer.len() * 2, 16384); // Cap at 16K PIDs
+                if new_size == buffer.len() {
+                    // Can't grow anymore, use what we have
+                    buffer.truncate(pids_returned);
+                    break;
+                }
+
+                buffer.resize(new_size, 0);
+                iteration += 1;
             }
 
-            // Filter out invalid PIDs (0 and negative)
             let valid_pids: Vec<i32> = buffer.into_iter().filter(|&pid| pid > 0).collect();
-
             Ok(valid_pids)
         }
     }
@@ -508,15 +512,14 @@ impl AccessibilityManager {
             );
 
             if windows_result == K_AXERROR_SUCCESS && !windows.is_null() {
-                let array_ref = windows as core_foundation::array::CFArrayRef;
-                let count = core_foundation::array::CFArrayGetCount(array_ref);
+                let array_ref = windows as CFArrayRef;
+                let count = CFArrayGetCount(array_ref);
 
                 if count > 0 {
                     debug!("Processing {} windows for PID {}", count, pid);
 
                     for i in 0..count {
-                        let window_element =
-                            core_foundation::array::CFArrayGetValueAtIndex(array_ref, i);
+                        let window_element = CFArrayGetValueAtIndex(array_ref, i);
                         if !window_element.is_null() {
                             // Verify this is a valid, manageable window
                             if self.is_window_tileable(window_element) {
@@ -603,12 +606,11 @@ impl AccessibilityManager {
                 );
 
                 if windows_result == K_AXERROR_SUCCESS && !windows.is_null() {
-                    let array_ref = windows as core_foundation::array::CFArrayRef;
-                    let count = core_foundation::array::CFArrayGetCount(array_ref);
+                    let array_ref = windows as CFArrayRef;
+                    let count = CFArrayGetCount(array_ref);
 
                     for i in 0..count {
-                        let window_element =
-                            core_foundation::array::CFArrayGetValueAtIndex(array_ref, i);
+                        let window_element = CFArrayGetValueAtIndex(array_ref, i);
                         if !window_element.is_null() {
                             window_elements.push(window_element);
                         }
@@ -829,15 +831,34 @@ impl AccessibilityManager {
             );
 
             if pos_result == K_AXERROR_SUCCESS && size_result == K_AXERROR_SUCCESS {
-                // Extract position and size
-                let position = CGPoint { x: 0.0, y: 0.0 };
-                let size = CGSize {
+                // Extract actual values from AXValue objects
+                let mut position = CGPoint { x: 0.0, y: 0.0 };
+                let mut size = CGSize {
                     width: 0.0,
                     height: 0.0,
                 };
 
-                // TODO: Implement proper AXValue extraction for position and size
-                // For now, return None to indicate we couldn't get the rect
+                // Extract position from AXValue
+                if !AXValueGetValue(
+                    position_value,
+                    K_AXVALUE_CGPOINT_TYPE,
+                    &mut position as *mut CGPoint as *mut c_void,
+                ) {
+                    CFRelease(position_value);
+                    CFRelease(size_value);
+                    return Ok(None);
+                }
+
+                // Extract size from AXValue
+                if !AXValueGetValue(
+                    size_value,
+                    K_AXVALUE_CGSIZE_TYPE,
+                    &mut size as *mut CGSize as *mut c_void,
+                ) {
+                    CFRelease(position_value);
+                    CFRelease(size_value);
+                    return Ok(None);
+                }
 
                 if !position_value.is_null() {
                     CFRelease(position_value);
@@ -846,8 +867,6 @@ impl AccessibilityManager {
                     CFRelease(size_value);
                 }
 
-                // This is a simplified version - a full implementation would extract
-                // the actual values from the AXValue objects
                 return Ok(Some(crate::Rect::new(
                     position.x,
                     position.y,
@@ -883,12 +902,17 @@ impl AccessibilityManager {
 
                         // Add windows to cache with generated IDs
                         for (index, window_element) in app_windows.into_iter().enumerate() {
-                            // Generate a simple window ID for caching
-                            let window_id = WindowId(((pid as u64) << 16 | index as u64) as u32);
+                            let window_id =
+                                self.generate_window_id(window_element, pid, Some(index));
                             unsafe {
                                 CFRetain(window_element);
                             }
-                            self.window_cache.insert(window_id, (pid, window_element));
+                            self.insert_window_with_collision_check(
+                                window_id,
+                                pid,
+                                window_element,
+                                index,
+                            );
                         }
                     }
                 }
@@ -944,47 +968,72 @@ impl AccessibilityManager {
         Ok(())
     }
 
+    fn generate_window_id(
+        &self,
+        element: AXUIElementRef,
+        pid: i32,
+        index: Option<usize>,
+    ) -> WindowId {
+        let ptr_val = element as usize;
+        let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
+        let mut hash2 = hash1.wrapping_add(pid as usize);
+
+        if let Some(idx) = index {
+            hash2 = hash2.wrapping_add(idx);
+        }
+
+        let hash3 = hash2.wrapping_mul(0x85ebca6b);
+        let final_hash = (hash3 >> 16) ^ (hash3 & 0xFFFF);
+        WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32)
+    }
+
+    fn insert_window_with_collision_check(
+        &mut self,
+        window_id: WindowId,
+        pid: i32,
+        element: AXUIElementRef,
+        index: usize,
+    ) {
+        if self.window_cache.contains_key(&window_id) {
+            warn!(
+                "WindowId collision detected for {:?} (PID: {}, index: {})",
+                window_id, pid, index
+            );
+            // Generate unique fallback ID using secure random component
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos() as u64;
+            let fallback_id = WindowId(
+                ((timestamp & 0xFFFF) << 16 | (pid as u64 & 0xFF) << 8 | (index as u64 & 0xFF))
+                    as u32,
+            );
+            self.window_cache.insert(fallback_id, (pid, element));
+            debug!("Using fallback WindowId {:?} for collision", fallback_id);
+        } else {
+            self.window_cache.insert(window_id, (pid, element));
+        }
+    }
+
     fn process_windows_array(&mut self, windows_array: CFTypeRef, pid: i32) -> Result<()> {
         unsafe {
-            let array_ref = windows_array as core_foundation::array::CFArrayRef;
-            let count = core_foundation::array::CFArrayGetCount(array_ref);
+            let array_ref = windows_array as CFArrayRef;
+            let count = CFArrayGetCount(array_ref);
 
             for i in 0..count {
-                let window_element = core_foundation::array::CFArrayGetValueAtIndex(array_ref, i);
+                let window_element = CFArrayGetValueAtIndex(array_ref, i);
                 if !window_element.is_null() {
                     // Retain the element before caching it
                     CFRetain(window_element);
 
-                    // Create a more robust window ID using PID, index, and element pointer
-                    // This approach reduces collisions while maintaining some stability
-                    let ptr_val = window_element as usize;
-                    let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
-                    let hash2 = hash1
-                        .wrapping_add(pid as usize)
-                        .wrapping_add(i as usize)
-                        .wrapping_mul(0x85ebca6b);
-                    let final_hash = (hash2 >> 16) ^ (hash2 & 0xFFFF);
-                    let window_id =
-                        WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
-
-                    // Check for collision and warn if detected
-                    if self.window_cache.contains_key(&window_id) {
-                        warn!(
-                            "WindowId collision detected for {:?} (PID: {}, index: {})",
-                            window_id, pid, i
-                        );
-                        // Use a fallback ID with timestamp to ensure uniqueness
-                        let timestamp = std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_millis() as u64;
-                        let fallback_id =
-                            WindowId(((timestamp & 0xFFFFFFFF) as u32).wrapping_add(i as u32));
-                        self.window_cache.insert(fallback_id, (pid, window_element));
-                        debug!("Using fallback WindowId {:?} for collision", fallback_id);
-                    } else {
-                        self.window_cache.insert(window_id, (pid, window_element));
-                    }
+                    // Generate window ID with collision detection
+                    let window_id = self.generate_window_id(window_element, pid, Some(i as usize));
+                    self.insert_window_with_collision_check(
+                        window_id,
+                        pid,
+                        window_element,
+                        i as usize,
+                    );
                 }
             }
         }

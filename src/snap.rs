@@ -49,7 +49,6 @@ pub enum DragResult {
 pub struct SnapManager {
     screen_rect: Rect,
     snap_zones: Vec<SnapZone>,
-    #[allow(dead_code)]
     snap_threshold: f64,
     window_drag_states: HashMap<WindowId, WindowDragState>,
 }
@@ -83,203 +82,124 @@ impl SnapManager {
     fn update_snap_zones(&mut self, screen_rect: Rect) {
         self.snap_zones.clear();
 
-        let border_size = 120.0; // Size of snap zone borders
-        let margin = 10.0; // Margin from screen edges
+        let border_size = 120.0;
+        let margin = 10.0;
 
         debug!("Creating snap zones for screen: {:?}", screen_rect);
 
-        // Center region (much smaller - only the very center of the screen)
-        let center_bounds = Rect::new(
-            screen_rect.x + screen_rect.width * 0.3,
-            screen_rect.y + screen_rect.height * 0.3,
-            screen_rect.width * 0.4,
-            screen_rect.height * 0.4,
-        );
+        // Define zone configurations
+        let zones = [
+            // Center zone
+            (
+                SnapRegion::Center,
+                (0.3, 0.3, 0.4, 0.4),
+                (0.25, 0.25, 0.5, 0.5),
+            ),
+            // Edge zones
+            (
+                SnapRegion::North,
+                (border_size, 0.0, -2.0 * border_size, border_size),
+                (margin, margin, -2.0 * margin, 0.5),
+            ),
+            (
+                SnapRegion::South,
+                (border_size, -border_size, -2.0 * border_size, border_size),
+                (margin, 0.5, -2.0 * margin, 0.5),
+            ),
+            (
+                SnapRegion::West,
+                (0.0, border_size, border_size, -2.0 * border_size),
+                (margin, margin, 0.5, -2.0 * margin),
+            ),
+            (
+                SnapRegion::East,
+                (-border_size, border_size, border_size, -2.0 * border_size),
+                (0.5, margin, 0.5, -2.0 * margin),
+            ),
+            // Corner zones
+            (
+                SnapRegion::NorthWest,
+                (0.0, 0.0, border_size, border_size),
+                (margin, margin, 0.5, 0.5),
+            ),
+            (
+                SnapRegion::NorthEast,
+                (-border_size, 0.0, border_size, border_size),
+                (0.5, margin, 0.5, 0.5),
+            ),
+            (
+                SnapRegion::SouthWest,
+                (0.0, -border_size, border_size, border_size),
+                (margin, 0.5, 0.5, 0.5),
+            ),
+            (
+                SnapRegion::SouthEast,
+                (-border_size, -border_size, border_size, border_size),
+                (0.5, 0.5, 0.5, 0.5),
+            ),
+        ];
 
-        debug!("Center zone bounds: {:?}", center_bounds);
+        for (region, bounds_config, snap_config) in zones {
+            let bounds = self.create_zone_rect(screen_rect, bounds_config, border_size, margin);
+            let snap_rect = self.create_zone_rect(screen_rect, snap_config, border_size, margin);
 
-        // Center snap rect (smaller, leaves room for other windows)
-        let center_snap = Rect::new(
-            screen_rect.x + screen_rect.width * 0.25,
-            screen_rect.y + screen_rect.height * 0.25,
-            screen_rect.width * 0.5,
-            screen_rect.height * 0.5,
-        );
+            debug!("{} zone bounds: {:?}", region.name(), bounds);
 
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::Center,
-            bounds: center_bounds,
-            snap_rect: center_snap,
-        });
+            self.snap_zones.push(SnapZone {
+                region,
+                bounds,
+                snap_rect,
+            });
+        }
+    }
 
-        // North region (top edge)
-        let north_bounds = Rect::new(
-            screen_rect.x + border_size,
-            screen_rect.y,
-            screen_rect.width - 2.0 * border_size,
-            border_size,
-        );
+    fn create_zone_rect(
+        &self,
+        screen_rect: Rect,
+        config: (f64, f64, f64, f64),
+        _border_size: f64,
+        margin: f64,
+    ) -> Rect {
+        let (x_config, y_config, w_config, h_config) = config;
 
-        debug!("North zone bounds: {:?}", north_bounds);
+        let x = if x_config < 0.0 {
+            screen_rect.x + screen_rect.width + x_config
+        } else if x_config <= 1.0 {
+            screen_rect.x + screen_rect.width * x_config
+        } else {
+            screen_rect.x + x_config
+        };
 
-        let north_snap = Rect::new(
-            screen_rect.x + margin,
-            screen_rect.y + margin,
-            screen_rect.width - 2.0 * margin,
-            screen_rect.height * 0.5 - margin,
-        );
+        let y = if y_config < 0.0 {
+            screen_rect.y + screen_rect.height + y_config
+        } else if y_config <= 1.0 {
+            screen_rect.y + screen_rect.height * y_config
+        } else {
+            screen_rect.y + y_config
+        };
 
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::North,
-            bounds: north_bounds,
-            snap_rect: north_snap,
-        });
+        let width = if w_config < 0.0 {
+            -w_config
+        } else if w_config <= 1.0 {
+            screen_rect.width * w_config
+                - if x_config == margin {
+                    2.0 * margin
+                } else {
+                    0.0
+                }
+        } else {
+            w_config
+        };
 
-        // South region (bottom edge)
-        let south_bounds = Rect::new(
-            screen_rect.x + border_size,
-            screen_rect.y + screen_rect.height - border_size,
-            screen_rect.width - 2.0 * border_size,
-            border_size,
-        );
+        let height = if h_config < 0.0 {
+            -h_config
+        } else if h_config <= 1.0 {
+            screen_rect.height * h_config - if y_config == margin { margin } else { 0.0 }
+        } else {
+            h_config
+        };
 
-        debug!("South zone bounds: {:?}", south_bounds);
-
-        let south_snap = Rect::new(
-            screen_rect.x + margin,
-            screen_rect.y + screen_rect.height * 0.5,
-            screen_rect.width - 2.0 * margin,
-            screen_rect.height * 0.5 - margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::South,
-            bounds: south_bounds,
-            snap_rect: south_snap,
-        });
-
-        // West region (left edge)
-        let west_bounds = Rect::new(
-            screen_rect.x,
-            screen_rect.y + border_size,
-            border_size,
-            screen_rect.height - 2.0 * border_size,
-        );
-
-        debug!("West zone bounds: {:?}", west_bounds);
-
-        let west_snap = Rect::new(
-            screen_rect.x + margin,
-            screen_rect.y + margin,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height - 2.0 * margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::West,
-            bounds: west_bounds,
-            snap_rect: west_snap,
-        });
-
-        // East region (right edge)
-        let east_bounds = Rect::new(
-            screen_rect.x + screen_rect.width - border_size,
-            screen_rect.y + border_size,
-            border_size,
-            screen_rect.height - 2.0 * border_size,
-        );
-
-        debug!("East zone bounds: {:?}", east_bounds);
-
-        let east_snap = Rect::new(
-            screen_rect.x + screen_rect.width * 0.5,
-            screen_rect.y + margin,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height - 2.0 * margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::East,
-            bounds: east_bounds,
-            snap_rect: east_snap,
-        });
-
-        // Corner regions for more precise placement
-
-        // Northwest corner
-        let nw_bounds = Rect::new(screen_rect.x, screen_rect.y, border_size, border_size);
-        let nw_snap = Rect::new(
-            screen_rect.x + margin,
-            screen_rect.y + margin,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height * 0.5 - margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::NorthWest,
-            bounds: nw_bounds,
-            snap_rect: nw_snap,
-        });
-
-        // Northeast corner
-        let ne_bounds = Rect::new(
-            screen_rect.x + screen_rect.width - border_size,
-            screen_rect.y,
-            border_size,
-            border_size,
-        );
-        let ne_snap = Rect::new(
-            screen_rect.x + screen_rect.width * 0.5,
-            screen_rect.y + margin,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height * 0.5 - margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::NorthEast,
-            bounds: ne_bounds,
-            snap_rect: ne_snap,
-        });
-
-        // Southwest corner
-        let sw_bounds = Rect::new(
-            screen_rect.x,
-            screen_rect.y + screen_rect.height - border_size,
-            border_size,
-            border_size,
-        );
-        let sw_snap = Rect::new(
-            screen_rect.x + margin,
-            screen_rect.y + screen_rect.height * 0.5,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height * 0.5 - margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::SouthWest,
-            bounds: sw_bounds,
-            snap_rect: sw_snap,
-        });
-
-        // Southeast corner
-        let se_bounds = Rect::new(
-            screen_rect.x + screen_rect.width - border_size,
-            screen_rect.y + screen_rect.height - border_size,
-            border_size,
-            border_size,
-        );
-        let se_snap = Rect::new(
-            screen_rect.x + screen_rect.width * 0.5,
-            screen_rect.y + screen_rect.height * 0.5,
-            screen_rect.width * 0.5 - margin,
-            screen_rect.height * 0.5 - margin,
-        );
-
-        self.snap_zones.push(SnapZone {
-            region: SnapRegion::SouthEast,
-            bounds: se_bounds,
-            snap_rect: se_snap,
-        });
+        Rect::new(x, y, width, height)
     }
 
     pub fn start_window_drag(&mut self, window_id: WindowId, current_rect: Rect) {
@@ -325,8 +245,11 @@ impl SnapManager {
                 final_rect
             );
 
-            // More responsive thresholds for better user experience
-            if drag_duration.as_millis() > 100 && drag_distance > 20.0 {
+            // Use configurable thresholds for better user experience
+            let min_time_ms = (self.snap_threshold * 1000.0) as u128;
+            let min_distance = self.snap_threshold * 200.0; // Scale distance with threshold
+
+            if drag_duration.as_millis() > min_time_ms && drag_distance > min_distance {
                 debug!("✅ Drag qualifies for processing, checking targets...");
 
                 // First check if we're over another window in the center area for swapping
@@ -387,9 +310,11 @@ impl SnapManager {
                 return DragResult::ReturnToOriginal(drag_state.initial_rect);
             } else {
                 debug!(
-                    "⏱️ Drag too short/small for processing (duration: {}ms < 100ms OR distance: {:.1}px < 20px), returning to original",
+                    "⏱️ Drag too short/small for processing (duration: {}ms < {}ms OR distance: {:.1}px < {:.1}px), returning to original",
                     drag_duration.as_millis(),
-                    drag_distance
+                    min_time_ms,
+                    drag_distance,
+                    min_distance
                 );
                 return DragResult::ReturnToOriginal(drag_state.initial_rect);
             }
