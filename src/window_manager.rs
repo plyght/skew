@@ -201,12 +201,16 @@ impl WindowManager {
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
-                } else {
-                    // Update window position - drag detection now handled by NSWindow notifications
-                    debug!("Window {:?} moved to {:?}", id, new_rect);
+                } else if self.user_dragging_windows.contains(&id) {
+                    // This is a user drag that NSWindow notifications already started tracking
+                    debug!("Window {:?} moved during NSWindow drag to {:?}", id, new_rect);
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
+                } else {
+                    // This is a user move - immediately process for potential snapping
+                    debug!("Window {:?} moved to {:?}", id, new_rect);
+                    self.handle_immediate_window_positioning(id, new_rect).await?;
                 }
             }
             WindowEvent::WindowResized(id, new_rect) => {
@@ -404,6 +408,153 @@ impl WindowManager {
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn handle_immediate_window_positioning(&mut self, window_id: WindowId, new_rect: Rect) -> Result<()> {
+        let previous_rect = self.previous_window_positions.get(&window_id).copied();
+        
+        // Update our records first
+        self.previous_window_positions.insert(window_id, new_rect);
+        if let Some(window) = self.windows.get_mut(&window_id) {
+            window.rect = new_rect;
+        }
+        
+        if let Some(prev_rect) = previous_rect {
+            // Check if this is a significant move that suggests user repositioning
+            let dx = (new_rect.x - prev_rect.x).abs();
+            let dy = (new_rect.y - prev_rect.y).abs();
+            let distance = (dx * dx + dy * dy).sqrt();
+            
+            // If window moved significantly, immediately check for snap zones
+            if distance > 20.0 { // Higher threshold for immediate snapping
+                debug!("Window {:?} moved significantly from {:?} to {:?}, checking snap zones", window_id, prev_rect, new_rect);
+                
+                // Check if the window center is in a snap zone
+                let center_x = new_rect.x + new_rect.width / 2.0;
+                let center_y = new_rect.y + new_rect.height / 2.0;
+                
+                // Check which zone the window is in
+                let current_zone = self.snap_manager.find_zone_at_point(center_x, center_y);
+                
+                match current_zone {
+                    Some(crate::snap::SnapRegion::Center) => {
+                        // Center zone: check for window swap first
+                        let effective_workspace = self.get_effective_current_workspace();
+                        let workspace_windows: Vec<&Window> = self
+                            .windows
+                            .values()
+                            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+                            .collect();
+                        
+                        if let Some(target_window_id) = self.snap_manager.find_window_under_drag(window_id, new_rect, &workspace_windows) {
+                            debug!("🔄 Window in center zone over another window, swapping positions");
+                            self.swap_windows(window_id, target_window_id).await?;
+                        } else {
+                            debug!("↩️ Window in center zone but no target, returning to original");
+                            self.return_window_to_original(window_id, prev_rect).await?;
+                        }
+                    }
+                    Some(_) => {
+                        // Edge or corner zone: snap to that zone
+                        if let Some(snap_rect) = self.snap_manager.find_snap_target(new_rect) {
+                            // Check if we need to snap (avoid redundant moves)
+                            let snap_dx = (snap_rect.x - new_rect.x).abs();
+                            let snap_dy = (snap_rect.y - new_rect.y).abs();
+                            let snap_dw = (snap_rect.width - new_rect.width).abs();
+                            let snap_dh = (snap_rect.height - new_rect.height).abs();
+                            
+                            if snap_dx > 10.0 || snap_dy > 10.0 || snap_dw > 10.0 || snap_dh > 10.0 {
+                                debug!("📍 Snapping window {:?} to zone at {:?}", window_id, snap_rect);
+                                
+                                // Mark as programmatic move to avoid feedback loop
+                                self.programmatically_moving.insert(window_id);
+                                
+                                // Move the window to snap position
+                                match self.macos.move_window(window_id, snap_rect).await {
+                                    Ok(_) => {
+                                        debug!("✅ Successfully snapped window {:?}", window_id);
+                                        // Update our internal state
+                                        if let Some(window) = self.windows.get_mut(&window_id) {
+                                            window.rect = snap_rect;
+                                        }
+                                        self.previous_window_positions.insert(window_id, snap_rect);
+                                    }
+                                    Err(e) => {
+                                        warn!("❌ Failed to snap window {:?}: {}, returning to original", window_id, e);
+                                        self.return_window_to_original(window_id, prev_rect).await?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        // Outside any zone: return to original
+                        debug!("🚫 Window outside all zones, returning to original");
+                        self.return_window_to_original(window_id, prev_rect).await?;
+                    }
+                }
+            }
+        } else {
+            // First time seeing this window
+            debug!("Recording initial position for window {:?}: {:?}", window_id, new_rect);
+        }
+        
+        Ok(())
+    }
+
+    async fn swap_windows(&mut self, window1_id: WindowId, window2_id: WindowId) -> Result<()> {
+        if let (Some(window1), Some(window2)) = (
+            self.windows.get(&window1_id).cloned(),
+            self.windows.get(&window2_id).cloned(),
+        ) {
+            debug!("🔄 Swapping positions of windows {:?} and {:?}", window1_id, window2_id);
+            
+            // Mark both as programmatic moves
+            self.programmatically_moving.insert(window1_id);
+            self.programmatically_moving.insert(window2_id);
+            
+            // Swap positions
+            match self.macos.move_window(window1_id, window2.rect).await {
+                Ok(_) => {
+                    if let Some(w) = self.windows.get_mut(&window1_id) {
+                        w.rect = window2.rect;
+                    }
+                    self.previous_window_positions.insert(window1_id, window2.rect);
+                }
+                Err(e) => warn!("Failed to move window {:?} during swap: {}", window1_id, e),
+            }
+            
+            match self.macos.move_window(window2_id, window1.rect).await {
+                Ok(_) => {
+                    if let Some(w) = self.windows.get_mut(&window2_id) {
+                        w.rect = window1.rect;
+                    }
+                    self.previous_window_positions.insert(window2_id, window1.rect);
+                }
+                Err(e) => warn!("Failed to move window {:?} during swap: {}", window2_id, e),
+            }
+        }
+        Ok(())
+    }
+
+    async fn return_window_to_original(&mut self, window_id: WindowId, original_rect: Rect) -> Result<()> {
+        debug!("↩️ Returning window {:?} to original position {:?}", window_id, original_rect);
+        
+        // Mark as programmatic move
+        self.programmatically_moving.insert(window_id);
+        
+        // Move the window back
+        match self.macos.move_window(window_id, original_rect).await {
+            Ok(_) => {
+                if let Some(window) = self.windows.get_mut(&window_id) {
+                    window.rect = original_rect;
+                }
+                self.previous_window_positions.insert(window_id, original_rect);
+            }
+            Err(e) => warn!("Failed to return window {:?} to original position: {}", window_id, e),
+        }
+        
         Ok(())
     }
 

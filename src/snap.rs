@@ -458,7 +458,7 @@ impl SnapManager {
         x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
     }
 
-    fn find_zone_at_point(&self, x: f64, y: f64) -> Option<SnapRegion> {
+    pub fn find_zone_at_point(&self, x: f64, y: f64) -> Option<SnapRegion> {
         // Check corners first (most specific)
         for zone in &self.snap_zones {
             if matches!(
