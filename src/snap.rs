@@ -304,8 +304,8 @@ impl SnapManager {
             );
 
             // Use configurable thresholds for better user experience
-            let min_time_ms = (self.snap_threshold * 1000.0) as u128;
-            let min_distance = self.snap_threshold * 200.0; // Scale distance with threshold
+            let min_time_ms = 100u128; // 100ms minimum drag time
+            let min_distance = self.snap_threshold; // Use snap_threshold directly for distance
 
             if drag_duration.as_millis() > min_time_ms && drag_distance > min_distance {
                 debug!("✅ Drag qualifies for processing, checking targets...");
