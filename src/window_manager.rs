@@ -201,14 +201,18 @@ impl WindowManager {
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
+                    // Update previous position tracking for programmatic moves
+                    self.previous_window_positions.insert(id, new_rect);
                 } else if self.user_dragging_windows.contains(&id) {
                     // This is a user drag that NSWindow notifications already started tracking
                     debug!("Window {:?} moved during NSWindow drag to {:?}", id, new_rect);
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
+                    // Update position tracking but don't trigger immediate positioning
+                    self.previous_window_positions.insert(id, new_rect);
                 } else {
-                    // This is a user move - immediately process for potential snapping
+                    // This is a user move - process for potential snapping
                     debug!("Window {:?} moved to {:?}", id, new_rect);
                     self.handle_immediate_window_positioning(id, new_rect).await?;
                 }
@@ -391,19 +395,75 @@ impl WindowManager {
                 
                 // Start tracking this drag in the snap manager
                 self.snap_manager.start_window_drag(window_id, initial_rect);
+                
+                // Store the original position for potential restoration
+                self.previous_window_positions.insert(window_id, initial_rect);
             }
             WindowDragEvent::DragEnded { window_id, final_rect, owner_pid } => {
                 info!("🛑 DRAG ENDED (NSWindow): window {:?} at {:?} (PID: {})", window_id, final_rect, owner_pid);
                 
-                // Remove from user dragging set
+                // Remove from user dragging set first
                 self.user_dragging_windows.remove(&window_id);
                 
                 // Check if this window is managed by us
                 if self.windows.contains_key(&window_id) {
-                    // Get the initial rect from snap manager
+                    // Update our internal state with final position
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = final_rect;
+                    }
+                    
+                    // Get the initial rect from snap manager for drag processing
                     if self.snap_manager.is_window_dragging(window_id) {
+                        // Get current windows for accurate workspace filtering
+                        let current_windows = self.macos.get_windows().await?;
+                        let effective_workspace = self.get_effective_current_workspace();
+                        let workspace_windows: Vec<&crate::Window> = current_windows
+                            .iter()
+                            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+                            .collect();
+                        
                         // Process the drag end with snap manager
-                        self.handle_drag_end(window_id, final_rect, final_rect).await?;
+                        let drag_result = self.snap_manager.end_window_drag(window_id, final_rect, &workspace_windows);
+                        
+                        match drag_result {
+                            crate::snap::DragResult::SnapToZone(snap_rect) => {
+                                info!("📍 Snapping dragged window {:?} to zone at {:?}", window_id, snap_rect);
+                                self.programmatically_moving.insert(window_id);
+                                if let Err(e) = self.macos.move_window(window_id, snap_rect).await {
+                                    warn!("❌ Failed to snap window after drag: {}", e);
+                                } else {
+                                    if let Some(window) = self.windows.get_mut(&window_id) {
+                                        window.rect = snap_rect;
+                                    }
+                                    self.previous_window_positions.insert(window_id, snap_rect);
+                                }
+                            }
+                            crate::snap::DragResult::SwapWithWindow(target_id, original_rect) => {
+                                info!("🔄 Swapping dragged window {:?} with target {:?}", window_id, target_id);
+                                // Use the enhanced swap_windows method
+                                if let Err(e) = self.swap_windows_with_rects(window_id, target_id, original_rect).await {
+                                    warn!("❌ Failed to swap windows after drag: {}", e);
+                                }
+                            }
+                            crate::snap::DragResult::ReturnToOriginal(original_rect) => {
+                                info!("↩️ Returning dragged window {:?} to original position {:?}", window_id, original_rect);
+                                self.programmatically_moving.insert(window_id);
+                                if let Err(e) = self.macos.move_window(window_id, original_rect).await {
+                                    warn!("❌ Failed to return window to original position: {}", e);
+                                } else {
+                                    if let Some(window) = self.windows.get_mut(&window_id) {
+                                        window.rect = original_rect;
+                                    }
+                                    self.previous_window_positions.insert(window_id, original_rect);
+                                }
+                            }
+                            crate::snap::DragResult::NoAction => {
+                                debug!("No action needed for dragged window {:?}", window_id);
+                            }
+                        }
+                        
+                        // Clear drag state
+                        self.snap_manager.clear_drag_state(window_id);
                     }
                 }
             }
@@ -412,6 +472,18 @@ impl WindowManager {
     }
 
     async fn handle_immediate_window_positioning(&mut self, window_id: WindowId, new_rect: Rect) -> Result<()> {
+        // Skip immediate positioning if this window is being dragged via NSWindow notifications
+        // The NSWindow drag system will handle the positioning when the drag ends
+        if self.user_dragging_windows.contains(&window_id) {
+            debug!("Skipping immediate positioning for window {:?} - NSWindow drag in progress", window_id);
+            // Still update our internal state
+            self.previous_window_positions.insert(window_id, new_rect);
+            if let Some(window) = self.windows.get_mut(&window_id) {
+                window.rect = new_rect;
+            }
+            return Ok(());
+        }
+        
         let previous_rect = self.previous_window_positions.get(&window_id).copied();
         
         // Update our records first
@@ -504,36 +576,144 @@ impl WindowManager {
     }
 
     async fn swap_windows(&mut self, window1_id: WindowId, window2_id: WindowId) -> Result<()> {
-        if let (Some(window1), Some(window2)) = (
-            self.windows.get(&window1_id).cloned(),
-            self.windows.get(&window2_id).cloned(),
-        ) {
-            debug!("🔄 Swapping positions of windows {:?} and {:?}", window1_id, window2_id);
+        // Get the most current window positions, not cached ones
+        let current_windows = self.macos.get_windows().await?;
+        
+        let window1_current = current_windows.iter().find(|w| w.id == window1_id);
+        let window2_current = current_windows.iter().find(|w| w.id == window2_id);
+        
+        if let (Some(window1), Some(window2)) = (window1_current, window2_current) {
+            let window1_rect = window1.rect;
+            let window2_rect = window2.rect;
             
-            // Mark both as programmatic moves
+            debug!("🔄 Swapping positions of windows {:?} (at {:?}) and {:?} (at {:?})", 
+                   window1_id, window1_rect, window2_id, window2_rect);
+            
+            // Mark both as programmatic moves to avoid feedback loops
             self.programmatically_moving.insert(window1_id);
             self.programmatically_moving.insert(window2_id);
             
-            // Swap positions
-            match self.macos.move_window(window1_id, window2.rect).await {
-                Ok(_) => {
-                    if let Some(w) = self.windows.get_mut(&window1_id) {
-                        w.rect = window2.rect;
-                    }
-                    self.previous_window_positions.insert(window1_id, window2.rect);
-                }
-                Err(e) => warn!("Failed to move window {:?} during swap: {}", window1_id, e),
-            }
+            // Create swap layout
+            let mut swap_layouts = HashMap::new();
+            swap_layouts.insert(window1_id, window2_rect);
+            swap_layouts.insert(window2_id, window1_rect);
             
-            match self.macos.move_window(window2_id, window1.rect).await {
+            // Try bulk move first (more reliable)
+            let both_windows = vec![window1.clone(), window2.clone()];
+            match self.macos.move_all_windows(&swap_layouts, &both_windows).await {
                 Ok(_) => {
-                    if let Some(w) = self.windows.get_mut(&window2_id) {
-                        w.rect = window1.rect;
+                    debug!("✅ Successfully swapped windows using bulk move");
+                    // Update our internal state
+                    if let Some(w) = self.windows.get_mut(&window1_id) {
+                        w.rect = window2_rect;
                     }
-                    self.previous_window_positions.insert(window2_id, window1.rect);
+                    if let Some(w) = self.windows.get_mut(&window2_id) {
+                        w.rect = window1_rect;
+                    }
+                    self.previous_window_positions.insert(window1_id, window2_rect);
+                    self.previous_window_positions.insert(window2_id, window1_rect);
                 }
-                Err(e) => warn!("Failed to move window {:?} during swap: {}", window2_id, e),
+                Err(e) => {
+                    warn!("Bulk swap failed, trying individual moves: {}", e);
+                    
+                    // Fallback to individual moves
+                    match self.macos.move_window(window1_id, window2_rect).await {
+                        Ok(_) => {
+                            if let Some(w) = self.windows.get_mut(&window1_id) {
+                                w.rect = window2_rect;
+                            }
+                            self.previous_window_positions.insert(window1_id, window2_rect);
+                        }
+                        Err(e) => warn!("Failed to move window {:?} during swap: {}", window1_id, e),
+                    }
+                    
+                    match self.macos.move_window(window2_id, window1_rect).await {
+                        Ok(_) => {
+                            if let Some(w) = self.windows.get_mut(&window2_id) {
+                                w.rect = window1_rect;
+                            }
+                            self.previous_window_positions.insert(window2_id, window1_rect);
+                        }
+                        Err(e) => warn!("Failed to move window {:?} during swap: {}", window2_id, e),
+                    }
+                }
             }
+        } else {
+            warn!("Could not find current positions for windows {:?} and {:?}", window1_id, window2_id);
+        }
+        Ok(())
+    }
+
+    async fn swap_windows_with_rects(&mut self, window1_id: WindowId, window2_id: WindowId, window1_original_rect: Rect) -> Result<()> {
+        // Get current window positions for the target window
+        let current_windows = self.macos.get_windows().await?;
+        let window2_current = current_windows.iter().find(|w| w.id == window2_id);
+        
+        if let Some(window2) = window2_current {
+            let window2_rect = window2.rect;
+            
+            debug!("🔄 Swapping positions: window {:?} to {:?}, window {:?} to {:?}", 
+                   window1_id, window2_rect, window2_id, window1_original_rect);
+            
+            // Mark both as programmatic moves to avoid feedback loops
+            self.programmatically_moving.insert(window1_id);
+            self.programmatically_moving.insert(window2_id);
+            
+            // Create swap layout
+            let mut swap_layouts = HashMap::new();
+            swap_layouts.insert(window1_id, window2_rect);
+            swap_layouts.insert(window2_id, window1_original_rect);
+            
+            // Get the current window object for window1
+            let window1_current = current_windows.iter().find(|w| w.id == window1_id);
+            
+            if let Some(window1) = window1_current {
+                let both_windows = vec![window1.clone(), window2.clone()];
+                
+                // Try bulk move first (more reliable)
+                match self.macos.move_all_windows(&swap_layouts, &both_windows).await {
+                    Ok(_) => {
+                        debug!("✅ Successfully swapped windows using bulk move");
+                        // Update our internal state
+                        if let Some(w) = self.windows.get_mut(&window1_id) {
+                            w.rect = window2_rect;
+                        }
+                        if let Some(w) = self.windows.get_mut(&window2_id) {
+                            w.rect = window1_original_rect;
+                        }
+                        self.previous_window_positions.insert(window1_id, window2_rect);
+                        self.previous_window_positions.insert(window2_id, window1_original_rect);
+                    }
+                    Err(e) => {
+                        warn!("Bulk swap failed, trying individual moves: {}", e);
+                        
+                        // Fallback to individual moves
+                        match self.macos.move_window(window1_id, window2_rect).await {
+                            Ok(_) => {
+                                if let Some(w) = self.windows.get_mut(&window1_id) {
+                                    w.rect = window2_rect;
+                                }
+                                self.previous_window_positions.insert(window1_id, window2_rect);
+                            }
+                            Err(e) => warn!("Failed to move window {:?} during swap: {}", window1_id, e),
+                        }
+                        
+                        match self.macos.move_window(window2_id, window1_original_rect).await {
+                            Ok(_) => {
+                                if let Some(w) = self.windows.get_mut(&window2_id) {
+                                    w.rect = window1_original_rect;
+                                }
+                                self.previous_window_positions.insert(window2_id, window1_original_rect);
+                            }
+                            Err(e) => warn!("Failed to move window {:?} during swap: {}", window2_id, e),
+                        }
+                    }
+                }
+            } else {
+                warn!("Could not find current window {:?} for swap", window1_id);
+            }
+        } else {
+            warn!("Could not find target window {:?} for swap", window2_id);
         }
         Ok(())
     }
@@ -866,8 +1046,11 @@ impl WindowManager {
                     window_id, target_window_id
                 );
 
-                // Get the target window's rect
-                if let Some(target_window) = self.windows.get(&target_window_id) {
+                // Get current window positions for accuracy
+                let current_windows = self.macos.get_windows().await?;
+                let target_window_current = current_windows.iter().find(|w| w.id == target_window_id);
+                
+                if let Some(target_window) = target_window_current {
                     let target_rect = target_window.rect;
 
                     // Mark both windows as programmatic moves
@@ -875,14 +1058,14 @@ impl WindowManager {
                     self.programmatically_moving.insert(target_window_id);
 
                     // Create layouts for both windows in their swapped positions
-                    let mut swap_layouts = std::collections::HashMap::new();
+                    let mut swap_layouts = HashMap::new();
                     swap_layouts.insert(window_id, target_rect);
                     swap_layouts.insert(target_window_id, original_rect);
 
                     // Get both window objects for the bulk move API
                     let both_windows: Vec<crate::Window> = [window_id, target_window_id]
                         .iter()
-                        .filter_map(|id| self.windows.get(id).cloned())
+                        .filter_map(|id| current_windows.iter().find(|w| w.id == *id).cloned())
                         .collect();
 
                     info!("🔄 Executing swap: dragged window {:?} -> {:?}, target window {:?} -> {:?}", 
@@ -898,6 +1081,10 @@ impl WindowManager {
                             if let Some(window) = self.windows.get_mut(&target_window_id) {
                                 window.rect = original_rect;
                             }
+                            
+                            // Update position tracking
+                            self.previous_window_positions.insert(window_id, target_rect);
+                            self.previous_window_positions.insert(target_window_id, original_rect);
 
                             info!(
                                 "✅ Successfully swapped windows {:?} and {:?}",
@@ -909,21 +1096,25 @@ impl WindowManager {
                             
                             // Fallback to individual moves
                             match self.macos.move_window(window_id, target_rect).await {
-                                Ok(_) => info!("✅ Moved dragged window to target position"),
+                                Ok(_) => {
+                                    info!("✅ Moved dragged window to target position");
+                                    if let Some(window) = self.windows.get_mut(&window_id) {
+                                        window.rect = target_rect;
+                                    }
+                                    self.previous_window_positions.insert(window_id, target_rect);
+                                }
                                 Err(e) => warn!("❌ Failed to move dragged window: {}", e),
                             }
                             
                             match self.macos.move_window(target_window_id, original_rect).await {
-                                Ok(_) => info!("✅ Moved target window to original position"),
+                                Ok(_) => {
+                                    info!("✅ Moved target window to original position");
+                                    if let Some(window) = self.windows.get_mut(&target_window_id) {
+                                        window.rect = original_rect;
+                                    }
+                                    self.previous_window_positions.insert(target_window_id, original_rect);
+                                }
                                 Err(e) => warn!("❌ Failed to move target window: {}", e),
-                            }
-
-                            // Update our internal state
-                            if let Some(window) = self.windows.get_mut(&window_id) {
-                                window.rect = target_rect;
-                            }
-                            if let Some(window) = self.windows.get_mut(&target_window_id) {
-                                window.rect = original_rect;
                             }
 
                             info!(
@@ -932,6 +1123,8 @@ impl WindowManager {
                             );
                         }
                     }
+                } else {
+                    warn!("❌ Target window {:?} not found in current windows", target_window_id);
                 }
             }
             DragResult::ReturnToOriginal(original_rect) => {
@@ -945,13 +1138,15 @@ impl WindowManager {
                 
                 // Move the window back to its original position
                 match self.macos.move_window(window_id, original_rect).await {
-                    Ok(_) => info!("✅ Successfully returned window {:?} to original position", window_id),
+                    Ok(_) => {
+                        info!("✅ Successfully returned window {:?} to original position", window_id);
+                        // Update our internal state
+                        if let Some(window) = self.windows.get_mut(&window_id) {
+                            window.rect = original_rect;
+                        }
+                        self.previous_window_positions.insert(window_id, original_rect);
+                    }
                     Err(e) => warn!("❌ Failed to return window {:?} to original position: {}", window_id, e),
-                }
-
-                // Update our internal state
-                if let Some(window) = self.windows.get_mut(&window_id) {
-                    window.rect = original_rect;
                 }
             }
             DragResult::NoAction => {
