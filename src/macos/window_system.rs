@@ -80,7 +80,6 @@ impl MacOSWindowSystem {
             info!("Found {} display(s)", display_count);
 
             for (i, &display_id) in display_list.iter().enumerate().take(display_count as usize) {
-
                 let bounds = CGDisplayBounds(display_id);
                 let is_main = display_id == main_display_id;
 
@@ -176,10 +175,7 @@ impl MacOSWindowSystem {
                     || old_window.rect.height != new_window.rect.height
                 {
                     let _ = sender
-                        .send(WindowEvent::WindowMoved(
-                            new_window.id,
-                            new_window.rect,
-                        ))
+                        .send(WindowEvent::WindowMoved(new_window.id, new_window.rect))
                         .await;
                 }
             }

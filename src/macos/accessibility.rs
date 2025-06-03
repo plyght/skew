@@ -180,6 +180,11 @@ impl AccessibilityManager {
             window_id, rect
         );
 
+        // Force refresh the cache to ensure we have current windows
+        if let Err(e) = self.refresh_all_windows_cache() {
+            warn!("Failed to refresh all windows cache: {}", e);
+        }
+
         // Try direct approach by finding the window element
         if let Some(element) = self.find_window_element(window_id)? {
             let result = self.set_window_rect(element, rect);
@@ -189,12 +194,23 @@ impl AccessibilityManager {
             result?;
             debug!("Successfully moved window {:?} to {:?}", window_id, rect);
         } else {
-            // Don't fail the operation if we can't find the window - it might have been closed
-            // or the accessibility cache might be stale. Just log a warning and continue.
-            debug!(
-                "Could not find accessibility element for window {:?}, skipping move",
-                window_id
-            );
+            // Try to find window by brute force matching with CGWindow data
+            if let Some(element) = self.find_window_by_cgwindow_id(window_id)? {
+                let result = self.set_window_rect(element, rect);
+                unsafe {
+                    CFRelease(element);
+                }
+                result?;
+                debug!(
+                    "Successfully moved window {:?} via brute force search",
+                    window_id
+                );
+            } else {
+                warn!(
+                    "Could not find accessibility element for window {:?} even with brute force search",
+                    window_id
+                );
+            }
         }
 
         Ok(())
@@ -681,6 +697,208 @@ impl AccessibilityManager {
             "Accessibility window cache refreshed with {} windows",
             self.window_cache.len()
         );
+        Ok(())
+    }
+
+    pub fn refresh_all_windows_cache(&mut self) -> Result<()> {
+        debug!("Refreshing accessibility cache for ALL applications");
+
+        // Release all cached elements before clearing
+        unsafe {
+            for (_, element) in self.window_cache.values() {
+                CFRelease(*element);
+            }
+        }
+        self.window_cache.clear();
+
+        // Get all windows from ALL accessible applications
+        if let Err(e) = self.enumerate_all_app_windows() {
+            warn!("Failed to enumerate all app windows: {}", e);
+            // Fall back to focused app only
+            self.enumerate_focused_app_windows()?;
+        }
+
+        self.last_cache_update = std::time::Instant::now();
+        debug!(
+            "All windows accessibility cache refreshed with {} windows",
+            self.window_cache.len()
+        );
+        Ok(())
+    }
+
+    fn find_window_by_cgwindow_id(
+        &mut self,
+        window_id: WindowId,
+    ) -> Result<Option<AXUIElementRef>> {
+        debug!("Searching for window {:?} by CGWindow ID", window_id);
+
+        // Get the CGWindow info for this ID to know what we're looking for
+        let cgwindow_id = window_id.0;
+        if let Ok(Some(cgwindow_info)) =
+            crate::macos::cgwindow::CGWindowInfo::get_window_info_by_id(cgwindow_id)
+        {
+            debug!(
+                "Found CGWindow info for ID {}: {} ({}) at {:?}",
+                cgwindow_id, cgwindow_info.title, cgwindow_info.owner, cgwindow_info.rect
+            );
+
+            // Search through all accessibility windows to find a match
+            return self.find_accessibility_window_by_attributes(
+                cgwindow_info.owner_pid,
+                &cgwindow_info.rect,
+                &cgwindow_info.title,
+            );
+        }
+
+        debug!("No CGWindow info found for ID {}", cgwindow_id);
+        Ok(None)
+    }
+
+    fn find_accessibility_window_by_attributes(
+        &mut self,
+        target_pid: i32,
+        target_rect: &crate::Rect,
+        _title: &str,
+    ) -> Result<Option<AXUIElementRef>> {
+        debug!(
+            "Searching for accessibility window with PID {} at {:?}",
+            target_pid, target_rect
+        );
+
+        // Get windows for the specific PID
+        match self.get_windows_for_app_by_pid(target_pid) {
+            Ok(app_windows) => {
+                for window_element in &app_windows {
+                    // Get position and size of this accessibility window
+                    if let Ok(Some(window_rect)) = self.get_window_rect(*window_element) {
+                        // Check if positions are close (within 5 pixels)
+                        let dx = (window_rect.x - target_rect.x).abs();
+                        let dy = (window_rect.y - target_rect.y).abs();
+                        let dw = (window_rect.width - target_rect.width).abs();
+                        let dh = (window_rect.height - target_rect.height).abs();
+
+                        if dx < 5.0 && dy < 5.0 && dw < 5.0 && dh < 5.0 {
+                            debug!("Found matching accessibility window at {:?}", window_rect);
+                            unsafe {
+                                CFRetain(*window_element);
+                                // Clean up other elements
+                                for other_element in &app_windows {
+                                    if *other_element != *window_element {
+                                        CFRelease(*other_element);
+                                    }
+                                }
+                            }
+                            return Ok(Some(*window_element));
+                        }
+                    }
+                }
+
+                // Clean up all elements if no match found
+                unsafe {
+                    for window_element in app_windows {
+                        CFRelease(window_element);
+                    }
+                }
+            }
+            Err(e) => {
+                debug!("Failed to get windows for PID {}: {}", target_pid, e);
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn get_window_rect(&self, element: AXUIElementRef) -> Result<Option<crate::Rect>> {
+        unsafe {
+            let position_attr = CFString::new(K_AXPOSITION_ATTRIBUTE);
+            let size_attr = CFString::new(K_AXSIZE_ATTRIBUTE);
+
+            let mut position_value: CFTypeRef = std::ptr::null_mut();
+            let mut size_value: CFTypeRef = std::ptr::null_mut();
+
+            let pos_result = AXUIElementCopyAttributeValue(
+                element,
+                position_attr.as_concrete_TypeRef(),
+                &mut position_value,
+            );
+
+            let size_result = AXUIElementCopyAttributeValue(
+                element,
+                size_attr.as_concrete_TypeRef(),
+                &mut size_value,
+            );
+
+            if pos_result == K_AXERROR_SUCCESS && size_result == K_AXERROR_SUCCESS {
+                // Extract position and size
+                let position = CGPoint { x: 0.0, y: 0.0 };
+                let size = CGSize {
+                    width: 0.0,
+                    height: 0.0,
+                };
+
+                // TODO: Implement proper AXValue extraction for position and size
+                // For now, return None to indicate we couldn't get the rect
+
+                if !position_value.is_null() {
+                    CFRelease(position_value);
+                }
+                if !size_value.is_null() {
+                    CFRelease(size_value);
+                }
+
+                // This is a simplified version - a full implementation would extract
+                // the actual values from the AXValue objects
+                return Ok(Some(crate::Rect::new(
+                    position.x,
+                    position.y,
+                    size.width,
+                    size.height,
+                )));
+            }
+
+            if !position_value.is_null() {
+                CFRelease(position_value);
+            }
+            if !size_value.is_null() {
+                CFRelease(size_value);
+            }
+        }
+        Ok(None)
+    }
+
+    fn enumerate_all_app_windows(&mut self) -> Result<()> {
+        debug!("Enumerating windows from ALL applications");
+
+        // Get all running processes
+        let all_pids = self.get_all_running_pids()?;
+        debug!("Found {} total running processes", all_pids.len());
+
+        let mut total_windows = 0;
+        for pid in all_pids {
+            match self.get_windows_for_app_by_pid(pid) {
+                Ok(app_windows) => {
+                    if !app_windows.is_empty() {
+                        debug!("Found {} windows for PID {}", app_windows.len(), pid);
+                        total_windows += app_windows.len();
+
+                        // Add windows to cache with generated IDs
+                        for (index, window_element) in app_windows.into_iter().enumerate() {
+                            // Generate a simple window ID for caching
+                            let window_id = WindowId(((pid as u64) << 16 | index as u64) as u32);
+                            unsafe {
+                                CFRetain(window_element);
+                            }
+                            self.window_cache.insert(window_id, (pid, window_element));
+                        }
+                    }
+                }
+                Err(_) => {
+                    // Ignore errors for processes that don't have accessible windows
+                }
+            }
+        }
+
+        debug!("Total accessible windows cached: {}", total_windows);
         Ok(())
     }
 

@@ -1,4 +1,4 @@
-use crate::{Rect, WindowId};
+use crate::{Rect, Window, WindowId};
 use log::debug;
 use std::collections::HashMap;
 
@@ -36,6 +36,14 @@ pub struct SnapZone {
     pub region: SnapRegion,
     pub bounds: Rect,
     pub snap_rect: Rect,
+}
+
+#[derive(Debug, Clone)]
+pub enum DragResult {
+    SnapToZone(Rect),
+    SwapWithWindow(WindowId),
+    ReturnToOriginal(Rect),
+    NoAction,
 }
 
 pub struct SnapManager {
@@ -292,43 +300,103 @@ impl SnapManager {
         }
     }
 
-    pub fn end_window_drag(&mut self, window_id: WindowId, final_rect: Rect) -> Option<Rect> {
+    pub fn end_window_drag(
+        &mut self,
+        window_id: WindowId,
+        final_rect: Rect,
+        all_windows: &[&Window],
+    ) -> DragResult {
+        debug!(
+            "🎬 SnapManager::end_window_drag called for window {:?}",
+            window_id
+        );
+
         if let Some(drag_state) = self.window_drag_states.remove(&window_id) {
             // Check if the window was dragged for a meaningful amount of time/distance
             let drag_duration = drag_state.drag_start_time.elapsed();
             let drag_distance = self.calculate_drag_distance(&drag_state.initial_rect, &final_rect);
 
             debug!(
-                "Drag ended for window {:?}: duration={:?}ms, distance={:.1}px",
+                "🕐 Drag ended for window {:?}: duration={}ms, distance={:.1}px, initial={:?}, final={:?}",
                 window_id,
                 drag_duration.as_millis(),
-                drag_distance
+                drag_distance,
+                drag_state.initial_rect,
+                final_rect
             );
 
-            // Much more conservative thresholds - only snap if it's clearly intentional
-            if drag_duration.as_millis() > 500 && drag_distance > 100.0 {
-                debug!("Drag qualifies for snapping, checking zones...");
+            // More responsive thresholds for better user experience
+            if drag_duration.as_millis() > 100 && drag_distance > 20.0 {
+                debug!("✅ Drag qualifies for processing, checking targets...");
 
-                // Only snap if the window center is clearly in a snap zone
+                // First check if we're over another window in the center area for swapping
+                if let Some(target_window_id) =
+                    self.find_window_under_drag(window_id, final_rect, all_windows)
+                {
+                    debug!(
+                        "🔍 Found window {:?} under dragged window",
+                        target_window_id
+                    );
+                    let center_x = final_rect.x + final_rect.width / 2.0;
+                    let center_y = final_rect.y + final_rect.height / 2.0;
+
+                    // Check if we're in the center swap zone (not in edge zones)
+                    let in_edge_zone = self.snap_zones.iter().any(|zone| {
+                        matches!(
+                            zone.region,
+                            SnapRegion::North
+                                | SnapRegion::South
+                                | SnapRegion::East
+                                | SnapRegion::West
+                        ) && self.point_in_rect(center_x, center_y, &zone.bounds)
+                    });
+
+                    if !in_edge_zone {
+                        debug!(
+                            "🔄 Window dropped over another window in swap zone, initiating swap"
+                        );
+                        return DragResult::SwapWithWindow(target_window_id);
+                    } else {
+                        debug!("📍 Window is in edge zone, not swapping");
+                    }
+                } else {
+                    debug!("🚫 No window found under dragged window");
+                }
+
+                // Check for snap zone targets
                 if let Some(snap_rect) = self.find_snap_target(final_rect) {
+                    debug!("🎯 Found snap target: {:?}", snap_rect);
                     // Double-check that we're not snapping to the same position
                     let dx = (snap_rect.x - final_rect.x).abs();
                     let dy = (snap_rect.y - final_rect.y).abs();
                     if dx > 10.0 || dy > 10.0 {
-                        return Some(snap_rect);
+                        debug!("📌 Snapping to zone");
+                        return DragResult::SnapToZone(snap_rect);
                     } else {
-                        debug!("Snap target too close to current position, skipping");
+                        debug!(
+                            "↩️ Snap target too close to current position, returning to original"
+                        );
+                        return DragResult::ReturnToOriginal(drag_state.initial_rect);
                     }
+                } else {
+                    debug!("🎯❌ No snap zone found");
                 }
+
+                // If no valid target found, return to original position
+                debug!("↩️ No valid snap target found, returning to original position");
+                return DragResult::ReturnToOriginal(drag_state.initial_rect);
             } else {
                 debug!(
-                    "Drag too short/small for snapping (duration: {:?}ms, distance: {:.1}px)",
+                    "⏱️ Drag too short/small for processing (duration: {}ms < 100ms OR distance: {:.1}px < 20px), returning to original",
                     drag_duration.as_millis(),
                     drag_distance
                 );
+                return DragResult::ReturnToOriginal(drag_state.initial_rect);
             }
+        } else {
+            debug!("❌ No drag state found for window {:?}", window_id);
         }
-        None
+        DragResult::NoAction
     }
 
     fn calculate_drag_distance(&self, initial: &Rect, final_rect: &Rect) -> f64 {
@@ -406,6 +474,32 @@ impl SnapManager {
 
     fn point_in_rect(&self, x: f64, y: f64, rect: &Rect) -> bool {
         x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+    }
+
+    pub fn find_window_under_drag(
+        &self,
+        dragged_window_id: WindowId,
+        dragged_rect: Rect,
+        all_windows: &[&Window],
+    ) -> Option<WindowId> {
+        let center_x = dragged_rect.x + dragged_rect.width / 2.0;
+        let center_y = dragged_rect.y + dragged_rect.height / 2.0;
+
+        for window in all_windows {
+            if window.id == dragged_window_id {
+                continue;
+            }
+
+            if self.point_in_rect(center_x, center_y, &window.rect) {
+                debug!(
+                    "Found window {:?} under dragged window {:?}",
+                    window.id, dragged_window_id
+                );
+                return Some(window.id);
+            }
+        }
+
+        None
     }
 
     pub fn get_snap_zones(&self) -> &[SnapZone] {

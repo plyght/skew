@@ -173,6 +173,11 @@ impl CGWindowInfo {
             title, owner, workspace_id
         );
 
+        debug!(
+            "Creating window with CGWindow ID {}: {} ({})",
+            window_id, title, owner
+        );
+
         Some(Window {
             id: WindowId(window_id),
             title,
