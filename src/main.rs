@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use log::{error, info};
+use log::info;
 use skew::{Config, Result, WindowManager};
 use std::path::PathBuf;
 

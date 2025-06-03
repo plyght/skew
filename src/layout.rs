@@ -89,14 +89,24 @@ impl BSPNode {
                 let right_width = self.rect.width - left_width;
                 (
                     Rect::new(self.rect.x, self.rect.y, left_width, self.rect.height),
-                    Rect::new(self.rect.x + left_width, self.rect.y, right_width, self.rect.height),
+                    Rect::new(
+                        self.rect.x + left_width,
+                        self.rect.y,
+                        right_width,
+                        self.rect.height,
+                    ),
                 )
             } else {
                 let left_height = self.rect.height * self.split_ratio;
                 let right_height = self.rect.height - left_height;
                 (
                     Rect::new(self.rect.x, self.rect.y, self.rect.width, left_height),
-                    Rect::new(self.rect.x, self.rect.y + left_height, self.rect.width, right_height),
+                    Rect::new(
+                        self.rect.x,
+                        self.rect.y + left_height,
+                        self.rect.width,
+                        right_height,
+                    ),
                 )
             };
             left.update_rect(left_rect);
@@ -114,16 +124,22 @@ impl BSPNode {
                 // For spiral layout: First split is vertical (horizontal = true), then alternate
                 // This creates the i3/sway-like pattern where new windows go right, then down
                 let should_split_horizontal = depth % 2 == 0;
-                
+
                 // Convert this leaf into a container
                 self.window_id = None;
                 self.split_ratio = split_ratio;
                 self.is_horizontal = should_split_horizontal;
-                
+
                 // Create child nodes - put existing window on left/top, new window on right/bottom
-                self.left = Some(Box::new(BSPNode::new_leaf(existing_id, Rect::new(0.0, 0.0, 0.0, 0.0))));
-                self.right = Some(Box::new(BSPNode::new_leaf(window_id, Rect::new(0.0, 0.0, 0.0, 0.0))));
-                
+                self.left = Some(Box::new(BSPNode::new_leaf(
+                    existing_id,
+                    Rect::new(0.0, 0.0, 0.0, 0.0),
+                )));
+                self.right = Some(Box::new(BSPNode::new_leaf(
+                    window_id,
+                    Rect::new(0.0, 0.0, 0.0, 0.0),
+                )));
+
                 // Update rects for all children
                 self.update_child_rects();
             } else {
@@ -140,10 +156,13 @@ impl BSPNode {
         }
     }
 
-
     fn count_windows(&self) -> usize {
         if self.is_leaf() {
-            if self.window_id.is_some() { 1 } else { 0 }
+            if self.window_id.is_some() {
+                1
+            } else {
+                0
+            }
         } else {
             let left_count = self.left.as_ref().map_or(0, |n| n.count_windows());
             let right_count = self.right.as_ref().map_or(0, |n| n.count_windows());
@@ -160,8 +179,14 @@ impl BSPNode {
             return false;
         }
 
-        let removed_from_left = self.left.as_mut().map_or(false, |left| left.remove_window(window_id));
-        let removed_from_right = self.right.as_mut().map_or(false, |right| right.remove_window(window_id));
+        let removed_from_left = self
+            .left
+            .as_mut()
+            .is_some_and(|left| left.remove_window(window_id));
+        let removed_from_right = self
+            .right
+            .as_mut()
+            .is_some_and(|right| right.remove_window(window_id));
 
         if removed_from_left || removed_from_right {
             self.collapse_if_needed();
@@ -172,8 +197,8 @@ impl BSPNode {
     }
 
     fn collapse_if_needed(&mut self) {
-        let left_empty = self.left.as_ref().map_or(true, |n| n.count_windows() == 0);
-        let right_empty = self.right.as_ref().map_or(true, |n| n.count_windows() == 0);
+        let left_empty = self.left.as_ref().is_none_or(|n| n.count_windows() == 0);
+        let right_empty = self.right.as_ref().is_none_or(|n| n.count_windows() == 0);
 
         if left_empty && right_empty {
             // Both children are empty, this becomes an empty leaf
@@ -198,8 +223,13 @@ impl BSPNode {
             return self.window_id == Some(window_id);
         }
 
-        self.left.as_ref().map_or(false, |left| left.contains_window(window_id)) ||
-        self.right.as_ref().map_or(false, |right| right.contains_window(window_id))
+        self.left
+            .as_ref()
+            .is_some_and(|left| left.contains_window(window_id))
+            || self
+                .right
+                .as_ref()
+                .is_some_and(|right| right.contains_window(window_id))
     }
 
     pub fn collect_window_rects(&self, gap: f64) -> HashMap<WindowId, Rect> {
@@ -297,7 +327,8 @@ impl LayoutManager {
             return HashMap::new();
         }
 
-        let window_ids: std::collections::HashSet<WindowId> = windows.iter().map(|w| w.id).collect();
+        let window_ids: std::collections::HashSet<WindowId> =
+            windows.iter().map(|w| w.id).collect();
 
         // Sync the BSP tree with current windows
         if let Some(ref mut root) = self.bsp_root {
@@ -409,7 +440,7 @@ impl LayoutManager {
         _screen_rect: Rect,
         _general_config: &GeneralConfig,
     ) -> HashMap<WindowId, Rect> {
-        windows.iter().map(|w| (w.id, w.rect.clone())).collect()
+        windows.iter().map(|w| (w.id, w.rect)).collect()
     }
 
     fn compute_grid_layout(
@@ -426,7 +457,7 @@ impl LayoutManager {
 
         let window_count = windows.len();
         let cols = (window_count as f64).sqrt().ceil() as usize;
-        let rows = (window_count + cols - 1) / cols;
+        let rows = window_count.div_ceil(cols);
 
         let cell_width = (screen_rect.width - general_config.gap * (cols + 1) as f64) / cols as f64;
         let cell_height =
@@ -548,7 +579,7 @@ impl LayoutManager {
         );
 
         for window in windows {
-            rects.insert(window.id, fullscreen_rect.clone());
+            rects.insert(window.id, fullscreen_rect);
         }
 
         rects
@@ -571,7 +602,7 @@ impl LayoutManager {
     }
 
     pub fn adjust_split_ratio(&mut self, delta: f64) {
-        self.split_ratio = (self.split_ratio + delta).max(0.1).min(0.9);
+        self.split_ratio = (self.split_ratio + delta).clamp(0.1, 0.9);
     }
 
     pub fn get_split_ratio(&self) -> f64 {

@@ -338,12 +338,10 @@ impl FocusManager {
             Some(current_index) => {
                 if forward {
                     (current_index + 1) % focusable_windows.len()
+                } else if current_index == 0 {
+                    focusable_windows.len() - 1
                 } else {
-                    if current_index == 0 {
-                        focusable_windows.len() - 1
-                    } else {
-                        current_index - 1
-                    }
+                    current_index - 1
                 }
             }
             None => 0, // No window focused, start with first

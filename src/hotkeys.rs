@@ -255,8 +255,8 @@ impl HotkeyManager {
         pressed_keys: &[Key],
         bindings: &HashMap<KeyCombination, String>,
     ) -> Option<KeyCombination> {
-        for (combination, _) in bindings {
-            if Self::is_combination_pressed(&combination, pressed_keys) {
+        for combination in bindings.keys() {
+            if Self::is_combination_pressed(combination, pressed_keys) {
                 return Some(combination.clone());
             }
         }
@@ -464,7 +464,7 @@ impl HotkeyManager {
 // Global callback function for rdev - must be a function pointer
 fn global_hotkey_callback(event: Event) {
     if let Some(sender) = GLOBAL_HOTKEY_SENDER.get() {
-        if let Err(_) = sender.send(event) {
+        if sender.send(event).is_err() {
             // Channel is closed, ignore the error
         }
     }

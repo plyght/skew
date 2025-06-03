@@ -27,12 +27,6 @@ extern "C" {
         attribute: CFStringRef,
         value: CFTypeRef,
     ) -> AXError;
-    fn AXUIElementCopyElementAtPosition(
-        element: AXUIElementRef,
-        x: f32,
-        y: f32,
-        element_at_position: *mut AXUIElementRef,
-    ) -> AXError;
     fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> AXError;
     fn AXIsProcessTrusted() -> bool;
     fn AXUIElementPerformAction(element: AXUIElementRef, action: CFStringRef) -> AXError;
@@ -42,8 +36,8 @@ extern "C" {
 }
 
 type AXValueType = u32;
-const kAXValueCGPointType: AXValueType = 1;
-const kAXValueCGSizeType: AXValueType = 2;
+const K_AXVALUE_CGPOINT_TYPE: AXValueType = 1;
+const K_AXVALUE_CGSIZE_TYPE: AXValueType = 2;
 
 #[repr(C)]
 struct CGPoint {
@@ -60,15 +54,14 @@ struct CGSize {
 type AXUIElementRef = CFTypeRef;
 type AXError = i32;
 
-const kAXErrorSuccess: AXError = 0;
-const kAXFocusedApplicationAttribute: &str = "AXFocusedApplication";
-const kAXFocusedWindowAttribute: &str = "AXFocusedWindow";
-const kAXPositionAttribute: &str = "AXPosition";
-const kAXSizeAttribute: &str = "AXSize";
-const kAXWindowsAttribute: &str = "AXWindows";
-const kAXTitleAttribute: &str = "AXTitle";
-const kAXRaiseAction: &str = "AXRaise";
-const kAXPressAction: &str = "AXPress";
+const K_AXERROR_SUCCESS: AXError = 0;
+const K_AXFOCUSED_APPLICATION_ATTRIBUTE: &str = "AXFocusedApplication";
+const K_AXFOCUSED_WINDOW_ATTRIBUTE: &str = "AXFocusedWindow";
+const K_AXPOSITION_ATTRIBUTE: &str = "AXPosition";
+const K_AXSIZE_ATTRIBUTE: &str = "AXSize";
+const K_AXWINDOWS_ATTRIBUTE: &str = "AXWindows";
+const K_AXRAISE_ACTION: &str = "AXRaise";
+const K_AXPRESS_ACTION: &str = "AXPress";
 
 pub struct AccessibilityManager {
     system_element: AXUIElementRef,
@@ -102,7 +95,7 @@ impl AccessibilityManager {
         debug!("Getting focused window via Accessibility API");
 
         unsafe {
-            let focused_app_attr = CFString::new(kAXFocusedApplicationAttribute);
+            let focused_app_attr = CFString::new(K_AXFOCUSED_APPLICATION_ATTRIBUTE);
             let mut focused_app: CFTypeRef = std::ptr::null_mut();
 
             let result = AXUIElementCopyAttributeValue(
@@ -111,12 +104,12 @@ impl AccessibilityManager {
                 &mut focused_app,
             );
 
-            if result != kAXErrorSuccess {
+            if result != K_AXERROR_SUCCESS {
                 debug!("Failed to get focused application: {}", result);
                 return Ok(None);
             }
 
-            let focused_window_attr = CFString::new(kAXFocusedWindowAttribute);
+            let focused_window_attr = CFString::new(K_AXFOCUSED_WINDOW_ATTRIBUTE);
             let mut focused_window: CFTypeRef = std::ptr::null_mut();
 
             let result = AXUIElementCopyAttributeValue(
@@ -127,7 +120,7 @@ impl AccessibilityManager {
 
             CFRelease(focused_app);
 
-            if result != kAXErrorSuccess {
+            if result != K_AXERROR_SUCCESS {
                 debug!("Failed to get focused window: {}", result);
                 return Ok(None);
             }
@@ -162,10 +155,10 @@ impl AccessibilityManager {
 
         if let Some((_pid, element)) = self.window_cache.get(&window_id) {
             unsafe {
-                let raise_action = CFString::new(kAXRaiseAction);
+                let raise_action = CFString::new(K_AXRAISE_ACTION);
                 let result = AXUIElementPerformAction(*element, raise_action.as_concrete_TypeRef());
 
-                if result == kAXErrorSuccess {
+                if result == K_AXERROR_SUCCESS {
                     debug!("Successfully focused window {:?}", window_id);
                 } else {
                     warn!("Failed to focus window {:?}: error {}", window_id, result);
@@ -246,7 +239,7 @@ impl AccessibilityManager {
 
         // Build HashMap from WindowId to expected Rect for O(1) lookup
         let window_id_to_rect: HashMap<WindowId, Rect> = layouts.clone();
-        
+
         // Get unique PIDs from the windows we need to tile
         let mut unique_pids = std::collections::HashSet::new();
         for window in windows {
@@ -264,30 +257,30 @@ impl AccessibilityManager {
                         app_window_elements.len(),
                         pid
                     );
-                    
+
                     // For each window element from this PID, try to match with our windows
                     for (element_index, window_element) in app_window_elements.iter().enumerate() {
                         // Find the corresponding window by matching PID and index within PID
                         // This is more reliable than global ordering
-                        let windows_for_pid: Vec<&crate::Window> = windows
-                            .iter()
-                            .filter(|w| w.owner_pid == pid)
-                            .collect();
-                        
+                        let windows_for_pid: Vec<&crate::Window> =
+                            windows.iter().filter(|w| w.owner_pid == pid).collect();
+
                         if element_index < windows_for_pid.len() {
                             let window_id = windows_for_pid[element_index].id;
-                            
+
                             // Look up the rect for this specific window ID
                             if let Some(rect) = window_id_to_rect.get(&window_id) {
-                                debug!("Moving window {:?} (PID {}, index {}) to {:?}", 
-                                       window_id, pid, element_index, rect);
+                                debug!(
+                                    "Moving window {:?} (PID {}, index {}) to {:?}",
+                                    window_id, pid, element_index, rect
+                                );
                                 if let Err(e) = self.set_window_rect(*window_element, *rect) {
                                     warn!("Failed to move window {:?}: {}", window_id, e);
                                 }
                             }
                         }
                     }
-                    
+
                     // Clean up retained window elements for this PID
                     unsafe {
                         for window_element in app_window_elements {
@@ -312,7 +305,7 @@ impl AccessibilityManager {
                 y: rect.y,
             };
             let position_value = AXValueCreate(
-                kAXValueCGPointType,
+                K_AXVALUE_CGPOINT_TYPE,
                 &position as *const CGPoint as *const c_void,
             );
 
@@ -320,7 +313,7 @@ impl AccessibilityManager {
                 return Err(anyhow::anyhow!("Failed to create position AXValue"));
             }
 
-            let position_attr = CFString::new(kAXPositionAttribute);
+            let position_attr = CFString::new(K_AXPOSITION_ATTRIBUTE);
             let position_result = AXUIElementSetAttributeValue(
                 element,
                 position_attr.as_concrete_TypeRef(),
@@ -332,15 +325,17 @@ impl AccessibilityManager {
                 width: rect.width,
                 height: rect.height,
             };
-            let size_value =
-                AXValueCreate(kAXValueCGSizeType, &size as *const CGSize as *const c_void);
+            let size_value = AXValueCreate(
+                K_AXVALUE_CGSIZE_TYPE,
+                &size as *const CGSize as *const c_void,
+            );
 
             if size_value.is_null() {
                 CFRelease(position_value);
                 return Err(anyhow::anyhow!("Failed to create size AXValue"));
             }
 
-            let size_attr = CFString::new(kAXSizeAttribute);
+            let size_attr = CFString::new(K_AXSIZE_ATTRIBUTE);
             let size_result =
                 AXUIElementSetAttributeValue(element, size_attr.as_concrete_TypeRef(), size_value);
 
@@ -348,7 +343,7 @@ impl AccessibilityManager {
             CFRelease(position_value);
             CFRelease(size_value);
 
-            if position_result == kAXErrorSuccess && size_result == kAXErrorSuccess {
+            if position_result == K_AXERROR_SUCCESS && size_result == K_AXERROR_SUCCESS {
                 debug!("Successfully set window rect to {:?}", rect);
                 Ok(())
             } else {
@@ -361,6 +356,7 @@ impl AccessibilityManager {
         }
     }
 
+    #[allow(dead_code)]
     fn get_all_accessible_window_elements(&mut self) -> Result<Vec<AXUIElementRef>> {
         let mut all_windows = Vec::new();
 
@@ -374,6 +370,7 @@ impl AccessibilityManager {
         Ok(all_windows)
     }
 
+    #[allow(dead_code)]
     fn enumerate_all_accessible_applications(
         &mut self,
         window_elements: &mut Vec<AXUIElementRef>,
@@ -406,6 +403,7 @@ impl AccessibilityManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn get_all_running_pids(&self) -> Result<Vec<i32>> {
         unsafe {
             // First, get the number of PIDs
@@ -442,16 +440,24 @@ impl AccessibilityManager {
         }
     }
 
-    #[deprecated(since = "1.0.0", note = "Use enumerate_all_accessible_applications instead. Will be removed in v2.0")]
+    #[allow(dead_code)]
+    #[deprecated(
+        since = "1.0.0",
+        note = "Use enumerate_all_accessible_applications instead. Will be removed in v2.0"
+    )]
     fn try_get_windows_from_other_apps(
         &mut self,
-        _window_elements: &mut Vec<AXUIElementRef>,
+        _window_elements: &mut [AXUIElementRef],
     ) -> Result<()> {
         debug!("try_get_windows_from_other_apps is deprecated - use enumerate_all_accessible_applications");
         Ok(())
     }
 
-    #[deprecated(since = "1.0.0", note = "Use get_windows_for_app_by_pid instead. Will be removed in v2.0")]
+    #[allow(dead_code)]
+    #[deprecated(
+        since = "1.0.0",
+        note = "Use get_windows_for_app_by_pid instead. Will be removed in v2.0"
+    )]
     fn get_windows_for_app_by_name(&mut self, app_name: &str) -> Result<Vec<AXUIElementRef>> {
         debug!(
             "get_windows_for_app_by_name called for {} - use get_windows_for_app_by_pid instead",
@@ -476,7 +482,7 @@ impl AccessibilityManager {
             }
 
             // Get windows for this application
-            let windows_attr = CFString::new(kAXWindowsAttribute);
+            let windows_attr = CFString::new(K_AXWINDOWS_ATTRIBUTE);
             let mut windows: CFTypeRef = std::ptr::null_mut();
 
             let windows_result = AXUIElementCopyAttributeValue(
@@ -485,7 +491,7 @@ impl AccessibilityManager {
                 &mut windows,
             );
 
-            if windows_result == kAXErrorSuccess && !windows.is_null() {
+            if windows_result == K_AXERROR_SUCCESS && !windows.is_null() {
                 let array_ref = windows as core_foundation::array::CFArrayRef;
                 let count = core_foundation::array::CFArrayGetCount(array_ref);
 
@@ -526,8 +532,8 @@ impl AccessibilityManager {
     fn is_window_tileable(&self, window_element: AXUIElementRef) -> bool {
         unsafe {
             // Check if window has position and size attributes (required for tiling)
-            let position_attr = CFString::new(kAXPositionAttribute);
-            let size_attr = CFString::new(kAXSizeAttribute);
+            let position_attr = CFString::new(K_AXPOSITION_ATTRIBUTE);
+            let size_attr = CFString::new(K_AXSIZE_ATTRIBUTE);
 
             let mut position_value: CFTypeRef = std::ptr::null_mut();
             let mut size_value: CFTypeRef = std::ptr::null_mut();
@@ -536,13 +542,13 @@ impl AccessibilityManager {
                 window_element,
                 position_attr.as_concrete_TypeRef(),
                 &mut position_value,
-            ) == kAXErrorSuccess;
+            ) == K_AXERROR_SUCCESS;
 
             let has_size = AXUIElementCopyAttributeValue(
                 window_element,
                 size_attr.as_concrete_TypeRef(),
                 &mut size_value,
-            ) == kAXErrorSuccess;
+            ) == K_AXERROR_SUCCESS;
 
             if !position_value.is_null() {
                 CFRelease(position_value);
@@ -555,12 +561,13 @@ impl AccessibilityManager {
         }
     }
 
+    #[allow(dead_code)]
     fn get_windows_from_focused_app(
         &mut self,
         window_elements: &mut Vec<AXUIElementRef>,
     ) -> Result<()> {
         unsafe {
-            let focused_app_attr = CFString::new(kAXFocusedApplicationAttribute);
+            let focused_app_attr = CFString::new(K_AXFOCUSED_APPLICATION_ATTRIBUTE);
             let mut focused_app: CFTypeRef = std::ptr::null_mut();
 
             let result = AXUIElementCopyAttributeValue(
@@ -569,8 +576,8 @@ impl AccessibilityManager {
                 &mut focused_app,
             );
 
-            if result == kAXErrorSuccess && !focused_app.is_null() {
-                let windows_attr = CFString::new(kAXWindowsAttribute);
+            if result == K_AXERROR_SUCCESS && !focused_app.is_null() {
+                let windows_attr = CFString::new(K_AXWINDOWS_ATTRIBUTE);
                 let mut windows: CFTypeRef = std::ptr::null_mut();
 
                 let windows_result = AXUIElementCopyAttributeValue(
@@ -579,7 +586,7 @@ impl AccessibilityManager {
                     &mut windows,
                 );
 
-                if windows_result == kAXErrorSuccess && !windows.is_null() {
+                if windows_result == K_AXERROR_SUCCESS && !windows.is_null() {
                     let array_ref = windows as core_foundation::array::CFArrayRef;
                     let count = core_foundation::array::CFArrayGetCount(array_ref);
 
@@ -623,12 +630,12 @@ impl AccessibilityManager {
                     &mut close_button,
                 );
 
-                if result == kAXErrorSuccess && !close_button.is_null() {
-                    let press_action = CFString::new(kAXPressAction);
+                if result == K_AXERROR_SUCCESS && !close_button.is_null() {
+                    let press_action = CFString::new(K_AXPRESS_ACTION);
                     let press_result =
                         AXUIElementPerformAction(close_button, press_action.as_concrete_TypeRef());
 
-                    if press_result == kAXErrorSuccess {
+                    if press_result == K_AXERROR_SUCCESS {
                         debug!("Successfully closed window {:?}", window_id);
                     } else {
                         warn!("Failed to press close button: error {}", press_result);
@@ -684,7 +691,7 @@ impl AccessibilityManager {
             // via NSWorkspace.runningApplications or similar APIs
 
             // Get focused application windows
-            let focused_app_attr = CFString::new(kAXFocusedApplicationAttribute);
+            let focused_app_attr = CFString::new(K_AXFOCUSED_APPLICATION_ATTRIBUTE);
             let mut focused_app: CFTypeRef = std::ptr::null_mut();
 
             let result = AXUIElementCopyAttributeValue(
@@ -693,12 +700,12 @@ impl AccessibilityManager {
                 &mut focused_app,
             );
 
-            if result == kAXErrorSuccess && !focused_app.is_null() {
+            if result == K_AXERROR_SUCCESS && !focused_app.is_null() {
                 let mut pid: i32 = 0;
                 AXUIElementGetPid(focused_app, &mut pid);
 
                 // Get all windows for this application
-                let windows_attr = CFString::new(kAXWindowsAttribute);
+                let windows_attr = CFString::new(K_AXWINDOWS_ATTRIBUTE);
                 let mut windows: CFTypeRef = std::ptr::null_mut();
 
                 let windows_result = AXUIElementCopyAttributeValue(
@@ -707,7 +714,7 @@ impl AccessibilityManager {
                     &mut windows,
                 );
 
-                if windows_result == kAXErrorSuccess && !windows.is_null() {
+                if windows_result == K_AXERROR_SUCCESS && !windows.is_null() {
                     self.process_windows_array(windows, pid)?;
                     CFRelease(windows);
                 }
@@ -734,19 +741,27 @@ impl AccessibilityManager {
                     // This approach reduces collisions while maintaining some stability
                     let ptr_val = window_element as usize;
                     let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
-                    let hash2 = hash1.wrapping_add(pid as usize).wrapping_add(i as usize).wrapping_mul(0x85ebca6b);
+                    let hash2 = hash1
+                        .wrapping_add(pid as usize)
+                        .wrapping_add(i as usize)
+                        .wrapping_mul(0x85ebca6b);
                     let final_hash = (hash2 >> 16) ^ (hash2 & 0xFFFF);
-                    let window_id = WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
-                    
+                    let window_id =
+                        WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32);
+
                     // Check for collision and warn if detected
                     if self.window_cache.contains_key(&window_id) {
-                        warn!("WindowId collision detected for {:?} (PID: {}, index: {})", window_id, pid, i);
+                        warn!(
+                            "WindowId collision detected for {:?} (PID: {}, index: {})",
+                            window_id, pid, i
+                        );
                         // Use a fallback ID with timestamp to ensure uniqueness
                         let timestamp = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
                             .as_millis() as u64;
-                        let fallback_id = WindowId(((timestamp & 0xFFFFFFFF) as u32).wrapping_add(i as u32));
+                        let fallback_id =
+                            WindowId(((timestamp & 0xFFFFFFFF) as u32).wrapping_add(i as u32));
                         self.window_cache.insert(fallback_id, (pid, window_element));
                         debug!("Using fallback WindowId {:?} for collision", fallback_id);
                     } else {

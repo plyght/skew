@@ -79,8 +79,8 @@ impl MacOSWindowSystem {
 
             info!("Found {} display(s)", display_count);
 
-            for i in 0..display_count as usize {
-                let display_id = display_list[i];
+            for (i, &display_id) in display_list.iter().enumerate().take(display_count as usize) {
+
                 let bounds = CGDisplayBounds(display_id);
                 let is_main = display_id == main_display_id;
 
@@ -178,7 +178,7 @@ impl MacOSWindowSystem {
                     let _ = sender
                         .send(WindowEvent::WindowMoved(
                             new_window.id,
-                            new_window.rect.clone(),
+                            new_window.rect,
                         ))
                         .await;
                 }
@@ -209,7 +209,7 @@ impl MacOSWindowSystem {
             .values()
             .find(|d| d.is_main)
             .ok_or_else(|| anyhow::anyhow!("No main display found"))?;
-        Ok(main_display.rect.clone())
+        Ok(main_display.rect)
     }
 
     pub fn get_displays(&self) -> &HashMap<u32, Display> {

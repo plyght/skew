@@ -20,7 +20,7 @@ impl SnapRegion {
         match self {
             Self::Center => "Center",
             Self::North => "North",
-            Self::South => "South", 
+            Self::South => "South",
             Self::East => "East",
             Self::West => "West",
             Self::NorthEast => "NorthEast",
@@ -41,12 +41,14 @@ pub struct SnapZone {
 pub struct SnapManager {
     screen_rect: Rect,
     snap_zones: Vec<SnapZone>,
+    #[allow(dead_code)]
     snap_threshold: f64,
     window_drag_states: HashMap<WindowId, WindowDragState>,
 }
 
 #[derive(Debug, Clone)]
 struct WindowDragState {
+    #[allow(dead_code)]
     window_id: WindowId,
     initial_rect: Rect,
     is_dragging: bool,
@@ -72,12 +74,12 @@ impl SnapManager {
 
     fn update_snap_zones(&mut self, screen_rect: Rect) {
         self.snap_zones.clear();
-        
+
         let border_size = 120.0; // Size of snap zone borders
         let margin = 10.0; // Margin from screen edges
-        
+
         debug!("Creating snap zones for screen: {:?}", screen_rect);
-        
+
         // Center region (much smaller - only the very center of the screen)
         let center_bounds = Rect::new(
             screen_rect.x + screen_rect.width * 0.3,
@@ -85,9 +87,9 @@ impl SnapManager {
             screen_rect.width * 0.4,
             screen_rect.height * 0.4,
         );
-        
+
         debug!("Center zone bounds: {:?}", center_bounds);
-        
+
         // Center snap rect (smaller, leaves room for other windows)
         let center_snap = Rect::new(
             screen_rect.x + screen_rect.width * 0.25,
@@ -95,7 +97,7 @@ impl SnapManager {
             screen_rect.width * 0.5,
             screen_rect.height * 0.5,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::Center,
             bounds: center_bounds,
@@ -109,16 +111,16 @@ impl SnapManager {
             screen_rect.width - 2.0 * border_size,
             border_size,
         );
-        
+
         debug!("North zone bounds: {:?}", north_bounds);
-        
+
         let north_snap = Rect::new(
             screen_rect.x + margin,
             screen_rect.y + margin,
             screen_rect.width - 2.0 * margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::North,
             bounds: north_bounds,
@@ -132,16 +134,16 @@ impl SnapManager {
             screen_rect.width - 2.0 * border_size,
             border_size,
         );
-        
+
         debug!("South zone bounds: {:?}", south_bounds);
-        
+
         let south_snap = Rect::new(
             screen_rect.x + margin,
             screen_rect.y + screen_rect.height * 0.5,
             screen_rect.width - 2.0 * margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::South,
             bounds: south_bounds,
@@ -155,16 +157,16 @@ impl SnapManager {
             border_size,
             screen_rect.height - 2.0 * border_size,
         );
-        
+
         debug!("West zone bounds: {:?}", west_bounds);
-        
+
         let west_snap = Rect::new(
             screen_rect.x + margin,
             screen_rect.y + margin,
             screen_rect.width * 0.5 - margin,
             screen_rect.height - 2.0 * margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::West,
             bounds: west_bounds,
@@ -178,16 +180,16 @@ impl SnapManager {
             border_size,
             screen_rect.height - 2.0 * border_size,
         );
-        
+
         debug!("East zone bounds: {:?}", east_bounds);
-        
+
         let east_snap = Rect::new(
             screen_rect.x + screen_rect.width * 0.5,
             screen_rect.y + margin,
             screen_rect.width * 0.5 - margin,
             screen_rect.height - 2.0 * margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::East,
             bounds: east_bounds,
@@ -195,7 +197,7 @@ impl SnapManager {
         });
 
         // Corner regions for more precise placement
-        
+
         // Northwest corner
         let nw_bounds = Rect::new(screen_rect.x, screen_rect.y, border_size, border_size);
         let nw_snap = Rect::new(
@@ -204,7 +206,7 @@ impl SnapManager {
             screen_rect.width * 0.5 - margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::NorthWest,
             bounds: nw_bounds,
@@ -224,7 +226,7 @@ impl SnapManager {
             screen_rect.width * 0.5 - margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::NorthEast,
             bounds: ne_bounds,
@@ -244,7 +246,7 @@ impl SnapManager {
             screen_rect.width * 0.5 - margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::SouthWest,
             bounds: sw_bounds,
@@ -264,7 +266,7 @@ impl SnapManager {
             screen_rect.width * 0.5 - margin,
             screen_rect.height * 0.5 - margin,
         );
-        
+
         self.snap_zones.push(SnapZone {
             region: SnapRegion::SouthEast,
             bounds: se_bounds,
@@ -295,14 +297,18 @@ impl SnapManager {
             // Check if the window was dragged for a meaningful amount of time/distance
             let drag_duration = drag_state.drag_start_time.elapsed();
             let drag_distance = self.calculate_drag_distance(&drag_state.initial_rect, &final_rect);
-            
-            debug!("Drag ended for window {:?}: duration={:?}ms, distance={:.1}px", 
-                   window_id, drag_duration.as_millis(), drag_distance);
-            
+
+            debug!(
+                "Drag ended for window {:?}: duration={:?}ms, distance={:.1}px",
+                window_id,
+                drag_duration.as_millis(),
+                drag_distance
+            );
+
             // Much more conservative thresholds - only snap if it's clearly intentional
             if drag_duration.as_millis() > 500 && drag_distance > 100.0 {
                 debug!("Drag qualifies for snapping, checking zones...");
-                
+
                 // Only snap if the window center is clearly in a snap zone
                 if let Some(snap_rect) = self.find_snap_target(final_rect) {
                     // Double-check that we're not snapping to the same position
@@ -315,8 +321,11 @@ impl SnapManager {
                     }
                 }
             } else {
-                debug!("Drag too short/small for snapping (duration: {:?}ms, distance: {:.1}px)", 
-                       drag_duration.as_millis(), drag_distance);
+                debug!(
+                    "Drag too short/small for snapping (duration: {:?}ms, distance: {:.1}px)",
+                    drag_duration.as_millis(),
+                    drag_distance
+                );
             }
         }
         None
@@ -332,48 +341,71 @@ impl SnapManager {
         // Use the window's center point to determine which snap zone it's in
         let center_x = window_rect.x + window_rect.width / 2.0;
         let center_y = window_rect.y + window_rect.height / 2.0;
-        
+
         // Check which zone the window center is in and return the first match
         // The order matters: corners, then sides, then center
-        
+
         // Check corners first (they're more specific)
         for zone in &self.snap_zones {
-            if matches!(zone.region, 
-                       SnapRegion::NorthWest | SnapRegion::NorthEast | 
-                       SnapRegion::SouthWest | SnapRegion::SouthEast) &&
-               self.point_in_rect(center_x, center_y, &zone.bounds) {
-                debug!("Window center ({}, {}) in {} zone", center_x, center_y, zone.region.name());
+            if matches!(
+                zone.region,
+                SnapRegion::NorthWest
+                    | SnapRegion::NorthEast
+                    | SnapRegion::SouthWest
+                    | SnapRegion::SouthEast
+            ) && self.point_in_rect(center_x, center_y, &zone.bounds)
+            {
+                debug!(
+                    "Window center ({}, {}) in {} zone",
+                    center_x,
+                    center_y,
+                    zone.region.name()
+                );
                 return Some(zone.snap_rect);
             }
         }
-        
+
         // Then check sides
         for zone in &self.snap_zones {
-            if matches!(zone.region, 
-                       SnapRegion::North | SnapRegion::South | 
-                       SnapRegion::East | SnapRegion::West) &&
-               self.point_in_rect(center_x, center_y, &zone.bounds) {
-                debug!("Window center ({}, {}) in {} zone", center_x, center_y, zone.region.name());
+            if matches!(
+                zone.region,
+                SnapRegion::North | SnapRegion::South | SnapRegion::East | SnapRegion::West
+            ) && self.point_in_rect(center_x, center_y, &zone.bounds)
+            {
+                debug!(
+                    "Window center ({}, {}) in {} zone",
+                    center_x,
+                    center_y,
+                    zone.region.name()
+                );
                 return Some(zone.snap_rect);
             }
         }
-        
+
         // Finally check center
         for zone in &self.snap_zones {
-            if zone.region == SnapRegion::Center && 
-               self.point_in_rect(center_x, center_y, &zone.bounds) {
-                debug!("Window center ({}, {}) in {} zone", center_x, center_y, zone.region.name());
+            if zone.region == SnapRegion::Center
+                && self.point_in_rect(center_x, center_y, &zone.bounds)
+            {
+                debug!(
+                    "Window center ({}, {}) in {} zone",
+                    center_x,
+                    center_y,
+                    zone.region.name()
+                );
                 return Some(zone.snap_rect);
             }
         }
-        
-        debug!("Window center ({}, {}) not in any snap zone", center_x, center_y);
+
+        debug!(
+            "Window center ({}, {}) not in any snap zone",
+            center_x, center_y
+        );
         None
     }
 
     fn point_in_rect(&self, x: f64, y: f64, rect: &Rect) -> bool {
-        x >= rect.x && x <= rect.x + rect.width &&
-        y >= rect.y && y <= rect.y + rect.height
+        x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
     }
 
     pub fn get_snap_zones(&self) -> &[SnapZone] {

@@ -1,8 +1,8 @@
 use crate::{Rect, Result, Window, WindowId};
 use log::{debug, warn};
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_double, c_int, c_uint, c_void};
+use std::ffi::CString;
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
 // Core Foundation types
@@ -35,7 +35,6 @@ extern "C" {
         cstr: *const c_char,
         encoding: u32,
     ) -> CFStringRef;
-    fn CFStringGetCStringPtr(string: CFStringRef, encoding: u32) -> *const c_char;
     fn CFStringGetLength(string: CFStringRef) -> CFIndex;
     fn CFStringGetCString(
         string: CFStringRef,
@@ -53,7 +52,6 @@ const K_CF_STRING_ENCODING_UTF8: u32 = 0x08000100;
 
 // Core Foundation Number types
 const K_CF_NUMBER_DOUBLE_TYPE: c_int = 13;
-const K_CF_NUMBER_LONG_LONG_TYPE: c_int = 11;
 
 pub struct CGWindowInfo;
 
@@ -313,6 +311,12 @@ pub struct WindowCache {
     windows: HashMap<WindowId, Window>,
     last_update: std::time::Instant,
     cache_duration: std::time::Duration,
+}
+
+impl Default for WindowCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WindowCache {
