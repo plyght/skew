@@ -2,7 +2,7 @@ use crate::focus::FocusManager;
 use crate::hotkeys::HotkeyManager;
 use crate::ipc::IpcServer;
 use crate::layout::LayoutManager;
-// use crate::macos::window_notifications::{WindowDragEvent, WindowDragNotificationObserver};
+use crate::macos::window_notifications::{WindowDragEvent, WindowDragNotificationObserver};
 use crate::macos::MacOSWindowSystem;
 use crate::plugins::PluginManager;
 use crate::snap::{DragResult, SnapManager};
@@ -72,9 +72,16 @@ pub struct WindowManager {
     command_rx: mpsc::Receiver<Command>,
     #[allow(dead_code)]
     command_tx: mpsc::Sender<Command>,
+    
+    // Drag notification system
+    drag_observer: WindowDragNotificationObserver,
+    drag_event_rx: mpsc::Receiver<WindowDragEvent>,
 
     // Track windows being moved programmatically to avoid snap conflicts
     programmatically_moving: std::collections::HashSet<WindowId>,
+
+    // Track actual user drag state (via NSWindow notifications)
+    user_dragging_windows: std::collections::HashSet<WindowId>,
 
     // Track window previous positions for immediate drag detection
     previous_window_positions: std::collections::HashMap<WindowId, Rect>,
@@ -92,7 +99,10 @@ impl WindowManager {
         let hotkey_manager = HotkeyManager::new(&config.hotkeys, command_tx.clone())?;
         let plugin_manager = PluginManager::new(&config.plugins)?;
 
-        // No longer using NSWindow notifications approach
+        // Set up drag notification system using NSWindow notifications
+        let (drag_event_tx, drag_event_rx) = mpsc::channel(100);
+        let mut drag_observer = WindowDragNotificationObserver::new(drag_event_tx);
+        drag_observer.start_observing().map_err(|e| anyhow::anyhow!("Failed to start drag observer: {}", e))?;
 
         // Initialize snap manager with screen rect
         let screen_rect = macos.get_screen_rect().await?;
@@ -112,7 +122,10 @@ impl WindowManager {
             event_rx,
             command_rx,
             command_tx,
+            drag_observer,
+            drag_event_rx,
             programmatically_moving: std::collections::HashSet::new(),
+            user_dragging_windows: std::collections::HashSet::new(),
             previous_window_positions: std::collections::HashMap::new(),
         })
     }
@@ -151,6 +164,11 @@ impl WindowManager {
                         error!("Error handling command: {}", e);
                     }
                 }
+                Some(drag_event) = self.drag_event_rx.recv() => {
+                    if let Err(e) = self.handle_drag_event(drag_event).await {
+                        error!("Error handling drag event: {}", e);
+                    }
+                }
                 _ = refresh_timer.tick() => {
                     if let Err(e) = self.refresh_windows().await {
                         error!("Error refreshing windows: {}", e);
@@ -183,51 +201,12 @@ impl WindowManager {
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
-                    // Update previous position for future comparisons
-                    self.previous_window_positions.insert(id, new_rect);
                 } else {
-                    // Check if this is the end of a user drag by comparing with previous position
-                    if let Some(&previous_rect) = self.previous_window_positions.get(&id) {
-                        let distance = ((new_rect.x - previous_rect.x).powi(2)
-                            + (new_rect.y - previous_rect.y).powi(2))
-                        .sqrt();
-
-                        // If the window hasn't moved much, this might be the end of a drag
-                        if distance < 5.0 {
-                            debug!(
-                                "🛑 POTENTIAL DRAG END: window {:?} moved from {:?} to {:?} (distance: {:.1}px)",
-                                id, previous_rect, new_rect, distance
-                            );
-
-                            // Check if we were tracking a drag for this window
-                            if self.snap_manager.is_window_dragging(id) {
-                                info!("🛑 DRAG ENDED: window {:?} at {:?}", id, new_rect);
-                                self.handle_drag_end(id, previous_rect, new_rect).await?;
-                            }
-                        } else {
-                            debug!(
-                                "🔍 DETECTED USER MOVE: window {:?} moved from {:?} to {:?} (distance: {:.1}px)",
-                                id, previous_rect, new_rect, distance
-                            );
-
-                            // Start tracking drag if not already tracking
-                            if !self.snap_manager.is_window_dragging(id) {
-                                info!("🚀 DRAG STARTED: window {:?} at {:?}", id, previous_rect);
-                                self.snap_manager.start_window_drag(id, previous_rect);
-                            }
-                        }
-                    } else {
-                        // First time seeing this window, just store its position
-                        debug!(
-                            "📍 Storing initial position for window {:?}: {:?}",
-                            id, new_rect
-                        );
-                    }
-
+                    // Update window position - drag detection now handled by NSWindow notifications
+                    debug!("Window {:?} moved to {:?}", id, new_rect);
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
-                    self.previous_window_positions.insert(id, new_rect);
                 }
             }
             WindowEvent::WindowResized(id, new_rect) => {
@@ -395,6 +374,36 @@ impl WindowManager {
             }
         }
 
+        Ok(())
+    }
+
+    async fn handle_drag_event(&mut self, event: WindowDragEvent) -> Result<()> {
+        match event {
+            WindowDragEvent::DragStarted { window_id, initial_rect, owner_pid } => {
+                info!("🚀 DRAG STARTED (NSWindow): window {:?} at {:?} (PID: {})", window_id, initial_rect, owner_pid);
+                
+                // Track that this window is being dragged by the user
+                self.user_dragging_windows.insert(window_id);
+                
+                // Start tracking this drag in the snap manager
+                self.snap_manager.start_window_drag(window_id, initial_rect);
+            }
+            WindowDragEvent::DragEnded { window_id, final_rect, owner_pid } => {
+                info!("🛑 DRAG ENDED (NSWindow): window {:?} at {:?} (PID: {})", window_id, final_rect, owner_pid);
+                
+                // Remove from user dragging set
+                self.user_dragging_windows.remove(&window_id);
+                
+                // Check if this window is managed by us
+                if self.windows.contains_key(&window_id) {
+                    // Get the initial rect from snap manager
+                    if self.snap_manager.is_window_dragging(window_id) {
+                        // Process the drag end with snap manager
+                        self.handle_drag_end(window_id, final_rect, final_rect).await?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -687,8 +696,12 @@ impl WindowManager {
 
                     // Mark as programmatic move
                     self.programmatically_moving.insert(window_id);
-                    // Move the window to snap position
-                    self.macos.move_window(window_id, snap_rect).await?;
+                    
+                    // Move the window to snap position (no delay needed with proper notifications)
+                    match self.macos.move_window(window_id, snap_rect).await {
+                        Ok(_) => info!("✅ Successfully snapped window {:?} to zone", window_id),
+                        Err(e) => warn!("❌ Failed to snap window {:?}: {}", window_id, e),
+                    }
 
                     // Update our internal state
                     if let Some(window) = self.windows.get_mut(&window_id) {
@@ -696,42 +709,78 @@ impl WindowManager {
                     }
                 }
             }
-            DragResult::SwapWithWindow(target_window_id) => {
+            DragResult::SwapWithWindow(target_window_id, original_rect) => {
                 info!(
                     "🔄 Swapping window {:?} with window {:?}",
                     window_id, target_window_id
                 );
 
-                // Get the rects of both windows
-                if let (Some(_dragged_window), Some(target_window)) = (
-                    self.windows.get(&window_id),
-                    self.windows.get(&target_window_id),
-                ) {
-                    let dragged_rect = final_rect; // Use actual final position
+                // Get the target window's rect
+                if let Some(target_window) = self.windows.get(&target_window_id) {
                     let target_rect = target_window.rect;
 
                     // Mark both windows as programmatic moves
                     self.programmatically_moving.insert(window_id);
                     self.programmatically_moving.insert(target_window_id);
 
-                    // Swap the windows
-                    self.macos.move_window(window_id, target_rect).await?;
-                    self.macos
-                        .move_window(target_window_id, dragged_rect)
-                        .await?;
+                    // Create layouts for both windows in their swapped positions
+                    let mut swap_layouts = std::collections::HashMap::new();
+                    swap_layouts.insert(window_id, target_rect);
+                    swap_layouts.insert(target_window_id, original_rect);
 
-                    // Update our internal state
-                    if let Some(window) = self.windows.get_mut(&window_id) {
-                        window.rect = target_rect;
-                    }
-                    if let Some(window) = self.windows.get_mut(&target_window_id) {
-                        window.rect = dragged_rect;
-                    }
+                    // Get both window objects for the bulk move API
+                    let both_windows: Vec<crate::Window> = [window_id, target_window_id]
+                        .iter()
+                        .filter_map(|id| self.windows.get(id).cloned())
+                        .collect();
 
-                    info!(
-                        "✅ Successfully swapped windows {:?} and {:?}",
-                        window_id, target_window_id
-                    );
+                    info!("🔄 Executing swap: dragged window {:?} -> {:?}, target window {:?} -> {:?}", 
+                          window_id, target_rect, target_window_id, original_rect);
+
+                    // Use the bulk move API which tends to be more reliable
+                    match self.macos.move_all_windows(&swap_layouts, &both_windows).await {
+                        Ok(_) => {
+                            // Update our internal state
+                            if let Some(window) = self.windows.get_mut(&window_id) {
+                                window.rect = target_rect;
+                            }
+                            if let Some(window) = self.windows.get_mut(&target_window_id) {
+                                window.rect = original_rect;
+                            }
+
+                            info!(
+                                "✅ Successfully swapped windows {:?} and {:?}",
+                                window_id, target_window_id
+                            );
+                        }
+                        Err(e) => {
+                            warn!("Bulk swap failed, trying individual moves: {}", e);
+                            
+                            // Fallback to individual moves
+                            match self.macos.move_window(window_id, target_rect).await {
+                                Ok(_) => info!("✅ Moved dragged window to target position"),
+                                Err(e) => warn!("❌ Failed to move dragged window: {}", e),
+                            }
+                            
+                            match self.macos.move_window(target_window_id, original_rect).await {
+                                Ok(_) => info!("✅ Moved target window to original position"),
+                                Err(e) => warn!("❌ Failed to move target window: {}", e),
+                            }
+
+                            // Update our internal state
+                            if let Some(window) = self.windows.get_mut(&window_id) {
+                                window.rect = target_rect;
+                            }
+                            if let Some(window) = self.windows.get_mut(&target_window_id) {
+                                window.rect = original_rect;
+                            }
+
+                            info!(
+                                "✅ Completed swap with individual moves: {:?} and {:?}",
+                                window_id, target_window_id
+                            );
+                        }
+                    }
                 }
             }
             DragResult::ReturnToOriginal(original_rect) => {
@@ -742,8 +791,12 @@ impl WindowManager {
 
                 // Mark as programmatic move
                 self.programmatically_moving.insert(window_id);
+                
                 // Move the window back to its original position
-                self.macos.move_window(window_id, original_rect).await?;
+                match self.macos.move_window(window_id, original_rect).await {
+                    Ok(_) => info!("✅ Successfully returned window {:?} to original position", window_id),
+                    Err(e) => warn!("❌ Failed to return window {:?} to original position: {}", window_id, e),
+                }
 
                 // Update our internal state
                 if let Some(window) = self.windows.get_mut(&window_id) {

@@ -41,7 +41,7 @@ pub struct SnapZone {
 #[derive(Debug, Clone)]
 pub enum DragResult {
     SnapToZone(Rect),
-    SwapWithWindow(WindowId),
+    SwapWithWindow(WindowId, Rect), // WindowId to swap with, original rect of dragged window
     ReturnToOriginal(Rect),
     NoAction,
 }
@@ -323,7 +323,7 @@ impl SnapManager {
                             self.find_window_under_drag(window_id, final_rect, all_windows)
                         {
                             debug!("🔄 Window dropped over another window in swap zone, initiating swap");
-                            return DragResult::SwapWithWindow(target_window_id);
+                            return DragResult::SwapWithWindow(target_window_id, drag_state.initial_rect);
                         } else {
                             debug!("📍 In center zone but no window to swap with, returning to original");
                             return DragResult::ReturnToOriginal(drag_state.initial_rect);
