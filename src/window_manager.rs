@@ -75,7 +75,7 @@ pub struct WindowManager {
 
     // Track windows being moved programmatically to avoid snap conflicts
     programmatically_moving: std::collections::HashSet<WindowId>,
-    
+
     // Track window previous positions for immediate drag detection
     previous_window_positions: std::collections::HashMap<WindowId, Rect>,
 }
@@ -188,15 +188,17 @@ impl WindowManager {
                 } else {
                     // Check if this is the end of a user drag by comparing with previous position
                     if let Some(&previous_rect) = self.previous_window_positions.get(&id) {
-                        let distance = ((new_rect.x - previous_rect.x).powi(2) + (new_rect.y - previous_rect.y).powi(2)).sqrt();
-                        
+                        let distance = ((new_rect.x - previous_rect.x).powi(2)
+                            + (new_rect.y - previous_rect.y).powi(2))
+                        .sqrt();
+
                         // If the window hasn't moved much, this might be the end of a drag
                         if distance < 5.0 {
                             debug!(
                                 "🛑 POTENTIAL DRAG END: window {:?} moved from {:?} to {:?} (distance: {:.1}px)",
                                 id, previous_rect, new_rect, distance
                             );
-                            
+
                             // Check if we were tracking a drag for this window
                             if self.snap_manager.is_window_dragging(id) {
                                 info!("🛑 DRAG ENDED: window {:?} at {:?}", id, new_rect);
@@ -207,7 +209,7 @@ impl WindowManager {
                                 "🔍 DETECTED USER MOVE: window {:?} moved from {:?} to {:?} (distance: {:.1}px)",
                                 id, previous_rect, new_rect, distance
                             );
-                            
+
                             // Start tracking drag if not already tracking
                             if !self.snap_manager.is_window_dragging(id) {
                                 info!("🚀 DRAG STARTED: window {:?} at {:?}", id, previous_rect);
@@ -216,9 +218,12 @@ impl WindowManager {
                         }
                     } else {
                         // First time seeing this window, just store its position
-                        debug!("📍 Storing initial position for window {:?}: {:?}", id, new_rect);
+                        debug!(
+                            "📍 Storing initial position for window {:?}: {:?}",
+                            id, new_rect
+                        );
                     }
-                    
+
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
@@ -505,7 +510,8 @@ impl WindowManager {
         for window in current_windows {
             // Store initial positions for new windows
             if !self.previous_window_positions.contains_key(&window.id) {
-                self.previous_window_positions.insert(window.id, window.rect);
+                self.previous_window_positions
+                    .insert(window.id, window.rect);
             }
             new_windows.insert(window.id, window);
         }
@@ -636,142 +642,13 @@ impl WindowManager {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    async fn handle_snap_drag_end(
+
+    async fn handle_drag_end(
         &mut self,
         window_id: WindowId,
-        current_rect: Rect,
+        _initial_rect: Rect,
+        final_rect: Rect,
     ) -> Result<()> {
-        info!(
-            "🎬 HANDLING DRAG END for window {:?} at {:?}",
-            window_id, current_rect
-        );
-
-        // Only process if window is still being dragged
-        if self.snap_manager.is_window_dragging(window_id) {
-            info!(
-                "✅ Window {:?} is still being dragged, processing...",
-                window_id
-            );
-
-            // Get current workspace from focused window for more reliable workspace detection
-            let effective_workspace = self.get_effective_current_workspace();
-
-            // Get all windows for window detection (filter by effective workspace)
-            let workspace_windows: Vec<&Window> = self
-                .windows
-                .values()
-                .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
-                .collect();
-
-            info!(
-                "🔍 Found {} windows in workspace for collision detection",
-                workspace_windows.len()
-            );
-
-            // Check what should happen with this drag
-            let drag_result =
-                self.snap_manager
-                    .end_window_drag(window_id, current_rect, &workspace_windows);
-
-            info!("🎯 Drag result: {:?}", drag_result);
-
-            match drag_result {
-                DragResult::SnapToZone(snap_rect) => {
-                    // Check if the window is already very close to the snap position to avoid redundant moves
-                    let dx = (snap_rect.x - current_rect.x).abs();
-                    let dy = (snap_rect.y - current_rect.y).abs();
-                    let dw = (snap_rect.width - current_rect.width).abs();
-                    let dh = (snap_rect.height - current_rect.height).abs();
-
-                    // Only snap if there's a meaningful difference (> 5 pixels)
-                    if dx > 5.0 || dy > 5.0 || dw > 5.0 || dh > 5.0 {
-                        debug!("Snapping window {:?} to zone at {:?}", window_id, snap_rect);
-
-                        // Mark as programmatic move
-                        self.programmatically_moving.insert(window_id);
-                        // Move the window to snap position
-                        self.macos.move_window(window_id, snap_rect).await?;
-
-                        // Update our internal state
-                        if let Some(window) = self.windows.get_mut(&window_id) {
-                            window.rect = snap_rect;
-                        }
-                    }
-                }
-                DragResult::SwapWithWindow(target_window_id) => {
-                    debug!(
-                        "Swapping window {:?} with window {:?}",
-                        window_id, target_window_id
-                    );
-
-                    // Get the rects of both windows
-                    if let (Some(_dragged_window), Some(target_window)) = (
-                        self.windows.get(&window_id),
-                        self.windows.get(&target_window_id),
-                    ) {
-                        let dragged_rect = current_rect; // Use current position, not stored position
-                        let target_rect = target_window.rect;
-
-                        // Mark both windows as programmatic moves
-                        self.programmatically_moving.insert(window_id);
-                        self.programmatically_moving.insert(target_window_id);
-
-                        // Swap the windows
-                        self.macos.move_window(window_id, target_rect).await?;
-                        self.macos
-                            .move_window(target_window_id, dragged_rect)
-                            .await?;
-
-                        // Update our internal state
-                        if let Some(window) = self.windows.get_mut(&window_id) {
-                            window.rect = target_rect;
-                        }
-                        if let Some(window) = self.windows.get_mut(&target_window_id) {
-                            window.rect = dragged_rect;
-                        }
-
-                        info!(
-                            "Successfully swapped windows {:?} and {:?}",
-                            window_id, target_window_id
-                        );
-                    }
-                }
-                DragResult::ReturnToOriginal(original_rect) => {
-                    debug!(
-                        "Returning window {:?} to original position {:?}",
-                        window_id, original_rect
-                    );
-
-                    // Mark as programmatic move
-                    self.programmatically_moving.insert(window_id);
-                    // Move the window back to its original position
-                    self.macos.move_window(window_id, original_rect).await?;
-
-                    // Update our internal state
-                    if let Some(window) = self.windows.get_mut(&window_id) {
-                        window.rect = original_rect;
-                    }
-                }
-                DragResult::NoAction => {
-                    info!("❌ No action needed for window {:?}", window_id);
-                }
-            }
-
-            // Always clear the drag state when we're done
-            self.snap_manager.clear_drag_state(window_id);
-            info!("🧹 Cleared drag state for window {:?}", window_id);
-        } else {
-            info!(
-                "⚠️ Window {:?} is NOT being tracked as dragging, ignoring drag end",
-                window_id
-            );
-        }
-
-        Ok(())
-    }
-
-    async fn handle_drag_end(&mut self, window_id: WindowId, _initial_rect: Rect, final_rect: Rect) -> Result<()> {
         // Get current workspace from focused window for reliable workspace detection
         let effective_workspace = self.get_effective_current_workspace();
 
@@ -788,11 +665,9 @@ impl WindowManager {
         );
 
         // Check what should happen with this drag
-        let drag_result = self.snap_manager.end_window_drag(
-            window_id,
-            final_rect,
-            &workspace_windows,
-        );
+        let drag_result =
+            self.snap_manager
+                .end_window_drag(window_id, final_rect, &workspace_windows);
 
         info!("🎯 Drag result: {:?}", drag_result);
 
@@ -883,7 +758,7 @@ impl WindowManager {
         // Always clear the drag state when we're done
         self.snap_manager.clear_drag_state(window_id);
         info!("🧹 Cleared drag state for window {:?}", window_id);
-        
+
         Ok(())
     }
 

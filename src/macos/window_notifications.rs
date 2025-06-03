@@ -145,11 +145,14 @@ extern "C" fn window_will_move_callback(observer: &mut Object, _cmd: Sel, notifi
 
         // Get window ID, initial rect, and owner PID
         if let (Some(window_id), Some(rect), Some(owner_pid)) = (
-            get_window_id(window), 
+            get_window_id(window),
             get_window_rect(window),
-            get_window_owner_pid(window)
+            get_window_owner_pid(window),
         ) {
-            debug!("Window drag started: {:?} at {:?} (PID: {})", window_id, rect, owner_pid);
+            debug!(
+                "Window drag started: {:?} at {:?} (PID: {})",
+                window_id, rect, owner_pid
+            );
 
             // Get our callback data from the observer
             if let (Some(dragging_windows), Some(event_sender)) =
@@ -184,11 +187,14 @@ extern "C" fn window_did_move_callback(observer: &mut Object, _cmd: Sel, notific
 
         // Get window ID, final rect, and owner PID
         if let (Some(window_id), Some(final_rect), Some(owner_pid)) = (
-            get_window_id(window), 
+            get_window_id(window),
             get_window_rect(window),
-            get_window_owner_pid(window)
+            get_window_owner_pid(window),
         ) {
-            debug!("Window drag ended: {:?} at {:?} (PID: {})", window_id, final_rect, owner_pid);
+            debug!(
+                "Window drag ended: {:?} at {:?} (PID: {})",
+                window_id, final_rect, owner_pid
+            );
 
             // Get our callback data from the observer
             if let (Some(dragging_windows), Some(event_sender)) =
@@ -252,18 +258,22 @@ unsafe fn get_window_rect(window: id) -> Option<Rect> {
 }
 
 unsafe fn get_window_owner_pid(window: id) -> Option<i32> {
-    // Try to get the PID from the NSWindow's owning process
-    // We'll use a more direct approach through the window server
-    
-    // First, try to get the window number and then use CGWindow APIs to find the PID
     let window_number: i32 = msg_send![window, windowNumber];
     if window_number <= 0 {
         return None;
     }
-    
-    // For now, we'll return a default PID of -1 as a placeholder
-    // This will be improved when we get the matching working with just position
-    Some(-1)
+
+    // Use NSRunningApplication to get the PID from the window's owning app
+    let app: id = msg_send![window, app];
+    if app != nil {
+        let running_app: id = msg_send![app, runningApplication];
+        if running_app != nil {
+            let pid: i32 = msg_send![running_app, processIdentifier];
+            return Some(pid);
+        }
+    }
+
+    None
 }
 
 unsafe fn get_dragging_windows(observer: &Object) -> Option<Arc<Mutex<HashMap<WindowId, Rect>>>> {
