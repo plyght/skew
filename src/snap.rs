@@ -82,66 +82,142 @@ impl SnapManager {
     fn update_snap_zones(&mut self, screen_rect: Rect) {
         self.snap_zones.clear();
 
-        let border_size = 120.0;
-        let margin = 10.0;
+        let edge_zone_width = 150.0; // Wider edge zones for easier targeting
+        let corner_size = 100.0; // Corner zones at edges
+        let margin = 8.0; // Small margin from screen edges
 
         debug!("Creating snap zones for screen: {:?}", screen_rect);
 
-        // Define zone configurations
+        // Define zone configurations based on visual representation
         let zones = [
-            // Center zone
+            // Center swap zone - larger area for swapping windows
             (
                 SnapRegion::Center,
-                (0.3, 0.3, 0.4, 0.4),
-                (0.25, 0.25, 0.5, 0.5),
+                (0.2, 0.2, 0.6, 0.6), // Zone bounds: center 60% of screen for easier targeting
+                (0.25, 0.25, 0.5, 0.5), // Snap rect: center quarter if no swap target
             ),
-            // Edge zones
+            // Warp zones - edge zones that "warp" windows to screen sides
             (
                 SnapRegion::North,
-                (border_size, 0.0, -2.0 * border_size, border_size),
-                (margin, margin, -2.0 * margin, 0.5),
+                (
+                    corner_size,
+                    0.0,
+                    screen_rect.width - 2.0 * corner_size,
+                    edge_zone_width,
+                ), // Top edge zone
+                (
+                    margin,
+                    margin,
+                    screen_rect.width - 2.0 * margin,
+                    screen_rect.height * 0.5 - margin,
+                ), // Snap to top half
             ),
             (
                 SnapRegion::South,
-                (border_size, -border_size, -2.0 * border_size, border_size),
-                (margin, 0.5, -2.0 * margin, 0.5),
+                (
+                    corner_size,
+                    screen_rect.height - edge_zone_width,
+                    screen_rect.width - 2.0 * corner_size,
+                    edge_zone_width,
+                ), // Bottom edge zone
+                (
+                    margin,
+                    screen_rect.height * 0.5,
+                    screen_rect.width - 2.0 * margin,
+                    screen_rect.height * 0.5 - margin,
+                ), // Snap to bottom half
             ),
             (
                 SnapRegion::West,
-                (0.0, border_size, border_size, -2.0 * border_size),
-                (margin, margin, 0.5, -2.0 * margin),
+                (
+                    0.0,
+                    corner_size,
+                    edge_zone_width,
+                    screen_rect.height - 2.0 * corner_size,
+                ), // Left edge zone
+                (
+                    margin,
+                    margin,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height - 2.0 * margin,
+                ), // Snap to left half
             ),
             (
                 SnapRegion::East,
-                (-border_size, border_size, border_size, -2.0 * border_size),
-                (0.5, margin, 0.5, -2.0 * margin),
+                (
+                    screen_rect.width - edge_zone_width,
+                    corner_size,
+                    edge_zone_width,
+                    screen_rect.height - 2.0 * corner_size,
+                ), // Right edge zone
+                (
+                    screen_rect.width * 0.5,
+                    margin,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height - 2.0 * margin,
+                ), // Snap to right half
             ),
-            // Corner zones
+            // Corner zones for quarter-screen snapping
             (
                 SnapRegion::NorthWest,
-                (0.0, 0.0, border_size, border_size),
-                (margin, margin, 0.5, 0.5),
+                (0.0, 0.0, corner_size, corner_size),
+                (
+                    margin,
+                    margin,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height * 0.5 - margin,
+                ),
             ),
             (
                 SnapRegion::NorthEast,
-                (-border_size, 0.0, border_size, border_size),
-                (0.5, margin, 0.5, 0.5),
+                (
+                    screen_rect.width - corner_size,
+                    0.0,
+                    corner_size,
+                    corner_size,
+                ),
+                (
+                    screen_rect.width * 0.5,
+                    margin,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height * 0.5 - margin,
+                ),
             ),
             (
                 SnapRegion::SouthWest,
-                (0.0, -border_size, border_size, border_size),
-                (margin, 0.5, 0.5, 0.5),
+                (
+                    0.0,
+                    screen_rect.height - corner_size,
+                    corner_size,
+                    corner_size,
+                ),
+                (
+                    margin,
+                    screen_rect.height * 0.5,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height * 0.5 - margin,
+                ),
             ),
             (
                 SnapRegion::SouthEast,
-                (-border_size, -border_size, border_size, border_size),
-                (0.5, 0.5, 0.5, 0.5),
+                (
+                    screen_rect.width - corner_size,
+                    screen_rect.height - corner_size,
+                    corner_size,
+                    corner_size,
+                ),
+                (
+                    screen_rect.width * 0.5,
+                    screen_rect.height * 0.5,
+                    screen_rect.width * 0.5 - margin,
+                    screen_rect.height * 0.5 - margin,
+                ),
             ),
         ];
 
         for (region, bounds_config, snap_config) in zones {
-            let bounds = self.create_zone_rect(screen_rect, bounds_config, border_size, margin);
-            let snap_rect = self.create_zone_rect(screen_rect, snap_config, border_size, margin);
+            let bounds = self.create_absolute_zone_rect(screen_rect, bounds_config);
+            let snap_rect = self.create_absolute_zone_rect(screen_rect, snap_config);
 
             debug!("{} zone bounds: {:?}", region.name(), bounds);
 
@@ -153,48 +229,30 @@ impl SnapManager {
         }
     }
 
-    fn create_zone_rect(
-        &self,
-        screen_rect: Rect,
-        config: (f64, f64, f64, f64),
-        _border_size: f64,
-        margin: f64,
-    ) -> Rect {
+    fn create_absolute_zone_rect(&self, screen_rect: Rect, config: (f64, f64, f64, f64)) -> Rect {
         let (x_config, y_config, w_config, h_config) = config;
 
-        let x = if x_config < 0.0 {
-            screen_rect.x + screen_rect.width + x_config
-        } else if x_config <= 1.0 {
+        // Handle both absolute coordinates and relative percentages
+        let x = if x_config <= 1.0 {
             screen_rect.x + screen_rect.width * x_config
         } else {
             screen_rect.x + x_config
         };
 
-        let y = if y_config < 0.0 {
-            screen_rect.y + screen_rect.height + y_config
-        } else if y_config <= 1.0 {
+        let y = if y_config <= 1.0 {
             screen_rect.y + screen_rect.height * y_config
         } else {
             screen_rect.y + y_config
         };
 
-        let width = if w_config < 0.0 {
-            -w_config
-        } else if w_config <= 1.0 {
+        let width = if w_config <= 1.0 {
             screen_rect.width * w_config
-                - if x_config == margin {
-                    2.0 * margin
-                } else {
-                    0.0
-                }
         } else {
             w_config
         };
 
-        let height = if h_config < 0.0 {
-            -h_config
-        } else if h_config <= 1.0 {
-            screen_rect.height * h_config - if y_config == margin { margin } else { 0.0 }
+        let height = if h_config <= 1.0 {
+            screen_rect.height * h_config
         } else {
             h_config
         };
@@ -252,62 +310,61 @@ impl SnapManager {
             if drag_duration.as_millis() > min_time_ms && drag_distance > min_distance {
                 debug!("✅ Drag qualifies for processing, checking targets...");
 
-                // First check if we're over another window in the center area for swapping
-                if let Some(target_window_id) =
-                    self.find_window_under_drag(window_id, final_rect, all_windows)
-                {
-                    debug!(
-                        "🔍 Found window {:?} under dragged window",
-                        target_window_id
-                    );
-                    let center_x = final_rect.x + final_rect.width / 2.0;
-                    let center_y = final_rect.y + final_rect.height / 2.0;
+                let center_x = final_rect.x + final_rect.width / 2.0;
+                let center_y = final_rect.y + final_rect.height / 2.0;
 
-                    // Check if we're in the center swap zone (not in edge zones)
-                    let in_edge_zone = self.snap_zones.iter().any(|zone| {
-                        matches!(
-                            zone.region,
-                            SnapRegion::North
-                                | SnapRegion::South
-                                | SnapRegion::East
-                                | SnapRegion::West
-                        ) && self.point_in_rect(center_x, center_y, &zone.bounds)
-                    });
+                // Determine which zone we're in
+                let current_zone = self.find_zone_at_point(center_x, center_y);
 
-                    if !in_edge_zone {
-                        debug!(
-                            "🔄 Window dropped over another window in swap zone, initiating swap"
-                        );
-                        return DragResult::SwapWithWindow(target_window_id);
-                    } else {
-                        debug!("📍 Window is in edge zone, not swapping");
+                match current_zone {
+                    Some(SnapRegion::Center) => {
+                        // In center swap zone - check for window to swap with
+                        if let Some(target_window_id) =
+                            self.find_window_under_drag(window_id, final_rect, all_windows)
+                        {
+                            debug!("🔄 Window dropped over another window in swap zone, initiating swap");
+                            return DragResult::SwapWithWindow(target_window_id);
+                        } else {
+                            debug!("📍 In center zone but no window to swap with, returning to original");
+                            return DragResult::ReturnToOriginal(drag_state.initial_rect);
+                        }
                     }
-                } else {
-                    debug!("🚫 No window found under dragged window");
-                }
+                    Some(
+                        SnapRegion::North
+                        | SnapRegion::South
+                        | SnapRegion::East
+                        | SnapRegion::West
+                        | SnapRegion::NorthEast
+                        | SnapRegion::NorthWest
+                        | SnapRegion::SouthEast
+                        | SnapRegion::SouthWest,
+                    ) => {
+                        // In warp/corner zone - snap to that zone regardless of other windows
+                        if let Some(snap_rect) = self.find_snap_target(final_rect) {
+                            debug!("🎯 Found warp/corner target: {:?}", snap_rect);
+                            let dx = (snap_rect.x - final_rect.x).abs();
+                            let dy = (snap_rect.y - final_rect.y).abs();
+                            let dw = (snap_rect.width - final_rect.width).abs();
+                            let dh = (snap_rect.height - final_rect.height).abs();
 
-                // Check for snap zone targets
-                if let Some(snap_rect) = self.find_snap_target(final_rect) {
-                    debug!("🎯 Found snap target: {:?}", snap_rect);
-                    // Double-check that we're not snapping to the same position
-                    let dx = (snap_rect.x - final_rect.x).abs();
-                    let dy = (snap_rect.y - final_rect.y).abs();
-                    if dx > 10.0 || dy > 10.0 {
-                        debug!("📌 Snapping to zone");
-                        return DragResult::SnapToZone(snap_rect);
-                    } else {
-                        debug!(
-                            "↩️ Snap target too close to current position, returning to original"
-                        );
+                            if dx > 10.0 || dy > 10.0 || dw > 10.0 || dh > 10.0 {
+                                debug!("📌 Warping to zone");
+                                return DragResult::SnapToZone(snap_rect);
+                            } else {
+                                debug!("↩️ Already close to warp target, returning to original");
+                                return DragResult::ReturnToOriginal(drag_state.initial_rect);
+                            }
+                        } else {
+                            debug!("🎯❌ No warp target found");
+                            return DragResult::ReturnToOriginal(drag_state.initial_rect);
+                        }
+                    }
+                    None => {
+                        // Outside all zones - return to original position
+                        debug!("🚫 Outside all snap zones, returning to original position");
                         return DragResult::ReturnToOriginal(drag_state.initial_rect);
                     }
-                } else {
-                    debug!("🎯❌ No snap zone found");
                 }
-
-                // If no valid target found, return to original position
-                debug!("↩️ No valid snap target found, returning to original position");
-                return DragResult::ReturnToOriginal(drag_state.initial_rect);
             } else {
                 debug!(
                     "⏱️ Drag too short/small for processing (duration: {}ms < {}ms OR distance: {:.1}px < {:.1}px), returning to original",
@@ -399,6 +456,42 @@ impl SnapManager {
 
     fn point_in_rect(&self, x: f64, y: f64, rect: &Rect) -> bool {
         x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+    }
+
+    fn find_zone_at_point(&self, x: f64, y: f64) -> Option<SnapRegion> {
+        // Check corners first (most specific)
+        for zone in &self.snap_zones {
+            if matches!(
+                zone.region,
+                SnapRegion::NorthWest
+                    | SnapRegion::NorthEast
+                    | SnapRegion::SouthWest
+                    | SnapRegion::SouthEast
+            ) && self.point_in_rect(x, y, &zone.bounds)
+            {
+                return Some(zone.region);
+            }
+        }
+
+        // Then check edges
+        for zone in &self.snap_zones {
+            if matches!(
+                zone.region,
+                SnapRegion::North | SnapRegion::South | SnapRegion::East | SnapRegion::West
+            ) && self.point_in_rect(x, y, &zone.bounds)
+            {
+                return Some(zone.region);
+            }
+        }
+
+        // Finally check center
+        for zone in &self.snap_zones {
+            if zone.region == SnapRegion::Center && self.point_in_rect(x, y, &zone.bounds) {
+                return Some(zone.region);
+            }
+        }
+
+        None
     }
 
     pub fn find_window_under_drag(
