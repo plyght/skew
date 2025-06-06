@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use log::{error, info};
+use log::info;
 use skew::{Config, Result, WindowManager};
 use std::path::PathBuf;
 
@@ -28,7 +28,11 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    // Initialize logger to show all log levels with timestamps
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Debug)
+        .format_timestamp_secs()
+        .init();
 
     let cli = Cli::parse();
 
