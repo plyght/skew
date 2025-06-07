@@ -314,6 +314,17 @@ impl MacOSWindowSystem {
     }
 
     pub async fn get_current_workspace(&self) -> Result<u32> {
+        // SAFETY: This unsafe block calls private macOS Core Graphics APIs:
+        // - CGSMainConnectionID(): Returns the main window server connection ID
+        //   Safe because: No parameters passed, returns a system-assigned connection ID
+        // - CGSGetActiveSpace(): Returns the currently active workspace/space ID
+        //   Safe because: Only reads system state, doesn't modify anything
+        // 
+        // Safety invariants:
+        // - Connection ID is validated to be non-zero before use
+        // - Workspace ID is validated against reasonable bounds (1-1000)
+        // - System APIs are called in correct order (connection first, then space query)
+        // - No memory is allocated or freed in this operation
         unsafe {
             let connection = CGSMainConnectionID();
             if connection == 0 {
@@ -321,14 +332,16 @@ impl MacOSWindowSystem {
             }
 
             let workspace = CGSGetActiveSpace(connection);
+            
+            // Validate workspace ID is within reasonable bounds
+            // 0 indicates API failure, >1000 likely indicates corruption or system error
             if workspace == 0 {
-                // SAFETY: CGSGetActiveSpace can return 0 on failure or when the system
-                // is in an inconsistent state. Falling back to workspace 1 provides
-                // a reasonable default that allows the window manager to continue
-                // functioning, as workspace 1 typically represents the first/main desktop.
-                // This fallback prevents crashes while maintaining basic functionality.
                 warn!("CGSGetActiveSpace returned 0, falling back to workspace 1");
                 debug!("Workspace fallback reason: CGS API returned invalid workspace ID");
+                Ok(1)
+            } else if workspace > 1000 {
+                warn!("CGSGetActiveSpace returned unusually large workspace ID: {}, falling back to workspace 1", workspace);
+                debug!("Workspace fallback reason: workspace ID {} exceeds reasonable bounds", workspace);
                 Ok(1)
             } else {
                 Ok(workspace)
