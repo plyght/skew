@@ -319,7 +319,7 @@ impl MacOSWindowSystem {
         //   Safe because: No parameters passed, returns a system-assigned connection ID
         // - CGSGetActiveSpace(): Returns the currently active workspace/space ID
         //   Safe because: Only reads system state, doesn't modify anything
-        // 
+        //
         // Safety invariants:
         // - Connection ID is validated to be non-zero before use
         // - Workspace ID is validated against reasonable bounds (1-1000)
@@ -332,7 +332,7 @@ impl MacOSWindowSystem {
             }
 
             let workspace = CGSGetActiveSpace(connection);
-            
+
             // Validate workspace ID is within reasonable bounds
             // 0 indicates API failure, >1000 likely indicates corruption or system error
             if workspace == 0 {
@@ -341,7 +341,10 @@ impl MacOSWindowSystem {
                 Ok(1)
             } else if workspace > 1000 {
                 warn!("CGSGetActiveSpace returned unusually large workspace ID: {}, falling back to workspace 1", workspace);
-                debug!("Workspace fallback reason: workspace ID {} exceeds reasonable bounds", workspace);
+                debug!(
+                    "Workspace fallback reason: workspace ID {} exceeds reasonable bounds",
+                    workspace
+                );
                 Ok(1)
             } else {
                 Ok(workspace)

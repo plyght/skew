@@ -323,7 +323,10 @@ impl SnapManager {
                             self.find_window_under_drag(window_id, final_rect, all_windows)
                         {
                             debug!("🔄 Window dropped over another window in swap zone, initiating swap");
-                            return DragResult::SwapWithWindow(target_window_id, drag_state.initial_rect);
+                            return DragResult::SwapWithWindow(
+                                target_window_id,
+                                drag_state.initial_rect,
+                            );
                         } else {
                             debug!("📍 In center zone but no window to swap with, returning to original");
                             return DragResult::ReturnToOriginal(drag_state.initial_rect);

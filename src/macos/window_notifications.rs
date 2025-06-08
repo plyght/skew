@@ -97,6 +97,21 @@ impl WindowDragNotificationObserver {
                 };
                 let _: () = msg_send![notification_center, removeObserver: observer];
 
+                // Retrieve and drop the boxed pointers to free memory
+                let dragging_windows_ptr: *const std::ffi::c_void =
+                    *(*observer).get_ivar("dragging_windows");
+                if !dragging_windows_ptr.is_null() {
+                    let _ = Box::from_raw(
+                        dragging_windows_ptr as *mut Arc<Mutex<HashMap<WindowId, Rect>>>,
+                    );
+                }
+
+                let event_sender_ptr: *const std::ffi::c_void =
+                    *(*observer).get_ivar("event_sender");
+                if !event_sender_ptr.is_null() {
+                    let _ = Box::from_raw(event_sender_ptr as *mut mpsc::Sender<WindowDragEvent>);
+                }
+
                 // Clean up the observer object
                 let _: () = msg_send![observer, release];
             }
