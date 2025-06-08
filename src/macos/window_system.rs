@@ -8,6 +8,12 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
 
+// macOS workspace detection
+extern "C" {
+    fn CGSGetActiveSpace(connection: u32) -> u32;
+    fn CGSMainConnectionID() -> u32;
+}
+
 #[derive(Debug, Clone)]
 pub struct Display {
     pub id: u32,
@@ -73,8 +79,7 @@ impl MacOSWindowSystem {
 
             info!("Found {} display(s)", display_count);
 
-            for i in 0..display_count as usize {
-                let display_id = display_list[i];
+            for (i, &display_id) in display_list.iter().enumerate().take(display_count as usize) {
                 let bounds = CGDisplayBounds(display_id);
                 let is_main = display_id == main_display_id;
 
@@ -116,7 +121,12 @@ impl MacOSWindowSystem {
 
         let sender = self.event_sender.clone();
         tokio::spawn(async move {
-            let mut interval = interval(Duration::from_millis(500));
+            // Window monitoring at 200ms provides responsive detection of window changes
+            // TODO: Make this configurable via skew.toml with key 'window_monitor_interval_ms'
+            // Recommended range: 100-500ms (lower = more responsive, higher = less CPU usage)
+            // Note: This interval should be configurable in production as it can be
+            // performance-intensive with CGWindowListCopyWindowInfo calls
+            let mut interval = interval(Duration::from_millis(200));
             let mut last_windows = Vec::new();
 
             loop {
@@ -124,6 +134,13 @@ impl MacOSWindowSystem {
 
                 match CGWindowInfo::get_all_windows() {
                     Ok(current_windows) => {
+                        debug!("Window scan found {} windows", current_windows.len());
+                        for window in &current_windows {
+                            debug!(
+                                "Window: {} ({}), workspace: {}, rect: {:?}",
+                                window.title, window.owner, window.workspace_id, window.rect
+                            );
+                        }
                         Self::detect_window_changes(&sender, &last_windows, &current_windows).await;
                         last_windows = current_windows;
                     }
@@ -144,6 +161,10 @@ impl MacOSWindowSystem {
     ) {
         for new_window in new_windows {
             if !old_windows.iter().any(|w| w.id == new_window.id) {
+                debug!(
+                    "New window detected: {} ({})",
+                    new_window.title, new_window.owner
+                );
                 let _ = sender
                     .send(WindowEvent::WindowCreated(new_window.clone()))
                     .await;
@@ -154,10 +175,7 @@ impl MacOSWindowSystem {
                     || old_window.rect.height != new_window.rect.height
                 {
                     let _ = sender
-                        .send(WindowEvent::WindowMoved(
-                            new_window.id,
-                            new_window.rect.clone(),
-                        ))
+                        .send(WindowEvent::WindowMoved(new_window.id, new_window.rect))
                         .await;
                 }
             }
@@ -187,7 +205,7 @@ impl MacOSWindowSystem {
             .values()
             .find(|d| d.is_main)
             .ok_or_else(|| anyhow::anyhow!("No main display found"))?;
-        Ok(main_display.rect.clone())
+        Ok(main_display.rect)
     }
 
     pub fn get_displays(&self) -> &HashMap<u32, Display> {
@@ -279,11 +297,58 @@ impl MacOSWindowSystem {
         self.accessibility.move_window(window_id, rect)
     }
 
+    pub async fn move_all_windows(
+        &mut self,
+        layouts: &std::collections::HashMap<WindowId, Rect>,
+        windows: &[crate::Window],
+    ) -> Result<()> {
+        self.accessibility.move_all_windows(layouts, windows)
+    }
+
     pub async fn close_window(&mut self, window_id: WindowId) -> Result<()> {
         self.accessibility.close_window(window_id)
     }
 
     pub async fn get_focused_window(&self) -> Result<Option<WindowId>> {
         self.accessibility.get_focused_window()
+    }
+
+    pub async fn get_current_workspace(&self) -> Result<u32> {
+        // SAFETY: This unsafe block calls private macOS Core Graphics APIs:
+        // - CGSMainConnectionID(): Returns the main window server connection ID
+        //   Safe because: No parameters passed, returns a system-assigned connection ID
+        // - CGSGetActiveSpace(): Returns the currently active workspace/space ID
+        //   Safe because: Only reads system state, doesn't modify anything
+        //
+        // Safety invariants:
+        // - Connection ID is validated to be non-zero before use
+        // - Workspace ID is validated against reasonable bounds (1-1000)
+        // - System APIs are called in correct order (connection first, then space query)
+        // - No memory is allocated or freed in this operation
+        unsafe {
+            let connection = CGSMainConnectionID();
+            if connection == 0 {
+                return Err(anyhow::anyhow!("Failed to get main connection ID"));
+            }
+
+            let workspace = CGSGetActiveSpace(connection);
+
+            // Validate workspace ID is within reasonable bounds
+            // 0 indicates API failure, >1000 likely indicates corruption or system error
+            if workspace == 0 {
+                warn!("CGSGetActiveSpace returned 0, falling back to workspace 1");
+                debug!("Workspace fallback reason: CGS API returned invalid workspace ID");
+                Ok(1)
+            } else if workspace > 1000 {
+                warn!("CGSGetActiveSpace returned unusually large workspace ID: {}, falling back to workspace 1", workspace);
+                debug!(
+                    "Workspace fallback reason: workspace ID {} exceeds reasonable bounds",
+                    workspace
+                );
+                Ok(1)
+            } else {
+                Ok(workspace)
+            }
+        }
     }
 }

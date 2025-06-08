@@ -31,7 +31,9 @@ pub struct PluginManager {
 
 #[cfg(feature = "scripting")]
 pub struct LuaPlugin {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     script_path: PathBuf,
 }
 

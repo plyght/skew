@@ -305,7 +305,7 @@ impl HotkeyConfig {
             }
 
             let parts: Vec<&str> = key_combo.split('+').collect();
-            if parts.len() < 1 {
+            if parts.is_empty() {
                 return Err(anyhow::anyhow!(
                     "Invalid key combination format: '{}'",
                     key_combo
