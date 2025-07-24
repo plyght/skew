@@ -973,13 +973,13 @@ impl AccessibilityManager {
         unsafe {
             let title_attr = CFString::new(K_AXTITLE_ATTRIBUTE);
             let mut title_value: CFTypeRef = std::ptr::null_mut();
-            
+
             let result = AXUIElementCopyAttributeValue(
                 element,
                 title_attr.as_concrete_TypeRef(),
                 &mut title_value,
             );
-            
+
             if result == K_AXERROR_SUCCESS && !title_value.is_null() {
                 let title_string = CFString::wrap_under_get_rule(title_value as CFStringRef);
                 let title = title_string.to_string();
@@ -999,12 +999,12 @@ impl AccessibilityManager {
     ) -> WindowId {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash the PID as the primary identifier
         pid.hash(&mut hasher);
-        
+
         // Try to get window title for stable identification
         if let Some(title) = self.get_window_title(element) {
             title.hash(&mut hasher);
@@ -1021,11 +1021,11 @@ impl AccessibilityManager {
                 (element as usize).hash(&mut hasher);
             }
         }
-        
+
         if let Some(idx) = index {
             idx.hash(&mut hasher);
         }
-        
+
         let hash = hasher.finish();
         WindowId(((pid as u64) << 16 | (hash as u64 & 0xFFFF)) as u32)
     }

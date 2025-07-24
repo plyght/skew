@@ -1,11 +1,11 @@
 use clap::{Parser, Subcommand};
 use log::info;
+use log::{Metadata, Record};
 use skew::{Config, Result, WindowManager};
-use std::path::PathBuf;
 use std::fs::OpenOptions;
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use log::{Record, Metadata};
 
 #[derive(Parser)]
 #[command(name = "skew")]
@@ -62,10 +62,10 @@ impl log::Log for DualLogger {
                 record.line().unwrap_or(0),
                 record.args()
             );
-            
+
             // Write to stderr (console)
             eprint!("{}", log_line);
-            
+
             // Write to file
             if let Ok(mut file) = self.file.lock() {
                 let _ = file.write_all(log_line.as_bytes());
@@ -83,11 +83,11 @@ impl log::Log for DualLogger {
 
 fn setup_dual_logging(log_file: &PathBuf) -> Result<()> {
     let dual_logger = DualLogger::new(log_file)?;
-    
+
     log::set_boxed_logger(Box::new(dual_logger))
         .map(|()| log::set_max_level(log::LevelFilter::Debug))
         .map_err(|e| anyhow::anyhow!("Failed to init dual logger: {}", e))?;
-    
+
     Ok(())
 }
 
@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
     let log_file = std::env::current_dir()
         .unwrap_or_else(|_| PathBuf::from("."))
         .join("skew.log");
-    
+
     setup_dual_logging(&log_file)?;
 
     let cli = Cli::parse();

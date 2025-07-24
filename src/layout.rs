@@ -85,21 +85,22 @@ impl BSPNode {
     fn update_child_rects(&mut self) {
         if let (Some(ref mut left), Some(ref mut right)) = (&mut self.left, &mut self.right) {
             const MIN_SPLIT_SIZE: f64 = 150.0; // Reduced minimum for better space usage
-            
+
             let (left_rect, right_rect) = if self.is_horizontal {
                 let ideal_left_width = self.rect.width * self.split_ratio;
                 let ideal_right_width = self.rect.width - ideal_left_width;
-                
+
                 // Ensure both sides meet minimum requirements with better distribution
                 let left_width = if ideal_left_width < MIN_SPLIT_SIZE {
                     MIN_SPLIT_SIZE.min(self.rect.width * 0.3) // Max 30% for minimum
                 } else if ideal_right_width < MIN_SPLIT_SIZE {
-                    (self.rect.width - MIN_SPLIT_SIZE).max(self.rect.width * 0.7) // Min 70% for main
+                    (self.rect.width - MIN_SPLIT_SIZE).max(self.rect.width * 0.7)
+                // Min 70% for main
                 } else {
                     ideal_left_width
                 };
                 let right_width = self.rect.width - left_width;
-                
+
                 (
                     Rect::new(self.rect.x, self.rect.y, left_width, self.rect.height),
                     Rect::new(
@@ -112,17 +113,18 @@ impl BSPNode {
             } else {
                 let ideal_left_height = self.rect.height * self.split_ratio;
                 let ideal_right_height = self.rect.height - ideal_left_height;
-                
+
                 // Ensure both sides meet minimum requirements with better distribution
                 let left_height = if ideal_left_height < MIN_SPLIT_SIZE {
                     MIN_SPLIT_SIZE.min(self.rect.height * 0.3) // Max 30% for minimum
                 } else if ideal_right_height < MIN_SPLIT_SIZE {
-                    (self.rect.height - MIN_SPLIT_SIZE).max(self.rect.height * 0.7) // Min 70% for main
+                    (self.rect.height - MIN_SPLIT_SIZE).max(self.rect.height * 0.7)
+                // Min 70% for main
                 } else {
                     ideal_left_height
                 };
                 let right_height = self.rect.height - left_height;
-                
+
                 (
                     Rect::new(self.rect.x, self.rect.y, self.rect.width, left_height),
                     Rect::new(
@@ -228,7 +230,7 @@ impl BSPNode {
         if let Some(ref mut right) = self.right {
             right.collapse_if_needed();
         }
-        
+
         let left_empty = self.left.as_ref().is_none_or(|n| n.count_windows() == 0);
         let right_empty = self.right.as_ref().is_none_or(|n| n.count_windows() == 0);
 
@@ -290,7 +292,7 @@ impl BSPNode {
     }
 
     fn validate_window_rect(rect: Rect) -> Rect {
-        const MIN_WINDOW_WIDTH: f64 = 150.0;  // Reduced for better space usage
+        const MIN_WINDOW_WIDTH: f64 = 150.0; // Reduced for better space usage
         const MIN_WINDOW_HEIGHT: f64 = 100.0; // Reduced for better space usage
         const MAX_WINDOW_WIDTH: f64 = 5000.0; // Increased for larger monitors
         const MAX_WINDOW_HEIGHT: f64 = 4000.0; // Increased for larger monitors
@@ -377,15 +379,15 @@ impl LayoutManager {
         // Always rebuild the tree for consistency and simplicity
         // This avoids complex synchronization issues
         let mut root = BSPNode::new_leaf(windows[0].id, screen_rect);
-        
+
         // Insert remaining windows
         for window in windows.iter().skip(1) {
             root.insert_window(window.id, self.split_ratio);
         }
-        
+
         // Update rect to final screen dimensions
         root.update_rect(screen_rect);
-        
+
         // Store the new tree
         self.bsp_root = Some(root);
 

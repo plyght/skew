@@ -81,7 +81,13 @@ struct WindowDragState {
 }
 
 impl SnapManager {
-    pub fn new(screen_rect: Rect, snap_threshold: f64, edge_zone_width: f64, corner_size: f64, margin: f64) -> Self {
+    pub fn new(
+        screen_rect: Rect,
+        snap_threshold: f64,
+        edge_zone_width: f64,
+        corner_size: f64,
+        margin: f64,
+    ) -> Self {
         let mut manager = Self {
             screen_rect,
             snap_zones: Vec::new(),
@@ -252,7 +258,7 @@ impl SnapManager {
 
     fn create_absolute_zone_rect(&self, screen_rect: Rect, config: (f64, f64, f64, f64)) -> Rect {
         let (x_config, y_config, w_config, h_config) = config;
-        
+
         // Convert legacy tuple format to explicit coordinate values
         // Values <= 1.0 are treated as relative for backward compatibility
         let x_coord = if x_config <= 1.0 && x_config >= 0.0 {
@@ -260,35 +266,35 @@ impl SnapManager {
         } else {
             CoordinateValue::Absolute(x_config)
         };
-        
+
         let y_coord = if y_config <= 1.0 && y_config >= 0.0 {
             CoordinateValue::Relative(y_config)
         } else {
             CoordinateValue::Absolute(y_config)
         };
-        
+
         let w_coord = if w_config <= 1.0 && w_config >= 0.0 {
             CoordinateValue::Relative(w_config)
         } else {
             CoordinateValue::Absolute(w_config)
         };
-        
+
         let h_coord = if h_config <= 1.0 && h_config >= 0.0 {
             CoordinateValue::Relative(h_config)
         } else {
             CoordinateValue::Absolute(h_config)
         };
-        
+
         self.create_zone_rect_from_coordinates(screen_rect, x_coord, y_coord, w_coord, h_coord)
     }
-    
+
     fn create_zone_rect_from_coordinates(
-        &self, 
-        screen_rect: Rect, 
-        x_coord: CoordinateValue, 
-        y_coord: CoordinateValue, 
-        w_coord: CoordinateValue, 
-        h_coord: CoordinateValue
+        &self,
+        screen_rect: Rect,
+        x_coord: CoordinateValue,
+        y_coord: CoordinateValue,
+        w_coord: CoordinateValue,
+        h_coord: CoordinateValue,
     ) -> Rect {
         let x = screen_rect.x + x_coord.resolve(screen_rect.width);
         let y = screen_rect.y + y_coord.resolve(screen_rect.height);

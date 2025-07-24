@@ -100,7 +100,8 @@ impl WindowDragNotificationObserver {
             ];
 
             // Register for NSWindowWillStartLiveResizeNotification
-            let will_start_resize_name = NSString::alloc(nil).init_str("NSWindowWillStartLiveResizeNotification");
+            let will_start_resize_name =
+                NSString::alloc(nil).init_str("NSWindowWillStartLiveResizeNotification");
             let will_start_resize_selector = sel!(windowWillStartLiveResize:);
             let _: () = msg_send![notification_center,
                 addObserver: observer
@@ -110,7 +111,8 @@ impl WindowDragNotificationObserver {
             ];
 
             // Register for NSWindowDidEndLiveResizeNotification
-            let did_end_resize_name = NSString::alloc(nil).init_str("NSWindowDidEndLiveResizeNotification");
+            let did_end_resize_name =
+                NSString::alloc(nil).init_str("NSWindowDidEndLiveResizeNotification");
             let did_end_resize_selector = sel!(windowDidEndLiveResize:);
             let _: () = msg_send![notification_center,
                 addObserver: observer
@@ -296,7 +298,11 @@ extern "C" fn window_did_move_callback(observer: &mut Object, _cmd: Sel, notific
     }
 }
 
-extern "C" fn window_will_start_live_resize_callback(observer: &mut Object, _cmd: Sel, notification: id) {
+extern "C" fn window_will_start_live_resize_callback(
+    observer: &mut Object,
+    _cmd: Sel,
+    notification: id,
+) {
     unsafe {
         debug!("NSWindowWillStartLiveResizeNotification received");
 
@@ -338,7 +344,11 @@ extern "C" fn window_will_start_live_resize_callback(observer: &mut Object, _cmd
     }
 }
 
-extern "C" fn window_did_end_live_resize_callback(observer: &mut Object, _cmd: Sel, notification: id) {
+extern "C" fn window_did_end_live_resize_callback(
+    observer: &mut Object,
+    _cmd: Sel,
+    notification: id,
+) {
     unsafe {
         debug!("NSWindowDidEndLiveResizeNotification received");
 
@@ -403,7 +413,7 @@ unsafe fn get_window_rect(window: id) -> Option<Rect> {
     let screen_height = {
         // Get the screen associated with this specific window
         let window_screen: id = msg_send![window, screen];
-        
+
         if window_screen.is_null() {
             // Fallback to main screen if window screen is not available
             let ns_screen_class = Class::get("NSScreen").unwrap();
