@@ -23,7 +23,7 @@ path = "src/bin/skew-cli.rs"
 core-graphics = "0.23"
 core-foundation = "0.9"
 cocoa = "0.25"
-objc = "0.2"
+objc = "0.2.7"
 
 # Configuration and serialization
 serde = { version = "1.0", features = ["derive"] }

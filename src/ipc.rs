@@ -150,7 +150,7 @@ impl IpcServer {
 
         let command = match message.command.as_str() {
             "focus" => {
-                if let Some(id_str) = message.args.get(0) {
+                if let Some(id_str) = message.args.first() {
                     match id_str.parse::<u32>() {
                         Ok(id) => Command::FocusWindow(WindowId(id)),
                         Err(_) => {
@@ -170,7 +170,7 @@ impl IpcServer {
                 }
             }
             "close" => {
-                if let Some(id_str) = message.args.get(0) {
+                if let Some(id_str) = message.args.first() {
                     match id_str.parse::<u32>() {
                         Ok(id) => Command::CloseWindow(WindowId(id)),
                         Err(_) => {

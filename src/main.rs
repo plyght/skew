@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
-use log::{error, info};
+use log::info;
+use log::{Metadata, Record};
 use skew::{Config, Result, WindowManager};
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 #[derive(Parser)]
 #[command(name = "skew")]
@@ -26,9 +30,75 @@ enum Commands {
     Status,
 }
 
+struct DualLogger {
+    file: Arc<Mutex<BufWriter<std::fs::File>>>,
+}
+
+impl DualLogger {
+    fn new(log_file: &PathBuf) -> Result<Self> {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_file)?;
+        Ok(DualLogger {
+            file: Arc::new(Mutex::new(BufWriter::new(file))),
+        })
+    }
+}
+
+impl log::Log for DualLogger {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+            let log_line = format!(
+                "[{} {} {}:{}] {}\n",
+                timestamp,
+                record.level(),
+                record.file().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
+                record.args()
+            );
+
+            // Write to stderr (console)
+            eprint!("{}", log_line);
+
+            // Write to file
+            if let Ok(mut file) = self.file.lock() {
+                let _ = file.write_all(log_line.as_bytes());
+                let _ = file.flush();
+            }
+        }
+    }
+
+    fn flush(&self) {
+        if let Ok(mut file) = self.file.lock() {
+            let _ = file.flush();
+        }
+    }
+}
+
+fn setup_dual_logging(log_file: &PathBuf) -> Result<()> {
+    let dual_logger = DualLogger::new(log_file)?;
+
+    log::set_boxed_logger(Box::new(dual_logger))
+        .map(|()| log::set_max_level(log::LevelFilter::Debug))
+        .map_err(|e| anyhow::anyhow!("Failed to init dual logger: {}", e))?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    // Initialize dual logger (console + file) to show all log levels with timestamps
+    let log_file = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("skew.log");
+
+    setup_dual_logging(&log_file)?;
 
     let cli = Cli::parse();
 

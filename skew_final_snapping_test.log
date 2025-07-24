@@ -1,0 +1,959 @@
+   Compiling skew v0.1.0 (/Users/nicojaffer/skew)
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:44:17
+   |
+44 |                 msg_send![ns_notification_center_class, defaultCenter]
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:49:32
+   |
+49 |             let observer: id = msg_send![observer_class, new];
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:67:38
+   |
+67 |             let will_move_selector = sel!(windowWillMove:);
+   |                                      ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:68:25
+   |
+68 |               let _: () = msg_send![notification_center,
+   |  _________________________^
+69 | |                 addObserver: observer
+70 | |                 selector: will_move_selector
+71 | |                 name: will_move_name
+72 | |                 object: nil
+73 | |             ];
+   | |_____________^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:77:37
+   |
+77 |             let did_move_selector = sel!(windowDidMove:);
+   |                                     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:78:25
+   |
+78 |               let _: () = msg_send![notification_center,
+   |  _________________________^
+79 | |                 addObserver: observer
+80 | |                 selector: did_move_selector
+81 | |                 name: did_move_name
+82 | |                 object: nil
+83 | |             ];
+   | |_____________^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:96:21
+   |
+96 |                     msg_send![ns_notification_center_class, defaultCenter]
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+  --> src/macos/window_notifications.rs:98:29
+   |
+98 |                 let _: () = msg_send![notification_center, removeObserver: observer];
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+   = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+   = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+   = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:116:29
+    |
+116 |                 let _: () = msg_send![observer, release];
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:122:26
+    |
+122 |         let superclass = class!(NSObject);
+    |                          ^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `class` crate for guidance on how handle this unexpected cfg
+    = help: the macro `class` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `class` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:132:13
+    |
+132 |             sel!(windowWillMove:),
+    |             ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:138:13
+    |
+138 |             sel!(windowDidMove:),
+    |             ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `sel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:156:26
+    |
+156 |         let window: id = msg_send![notification, object];
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:198:26
+    |
+198 |         let window: id = msg_send![notification, object];
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:243:30
+    |
+243 |     let window_number: i32 = msg_send![window, windowNumber];
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:253:44
+    |
+253 |     let frame: cocoa::foundation::NSRect = msg_send![window, frame];
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:259:13
+    |
+259 |             msg_send![ns_screen_class, mainScreen]
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:261:55
+    |
+261 |         let screen_frame: cocoa::foundation::NSRect = msg_send![main_screen, frame];
+    |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:276:30
+    |
+276 |     let window_number: i32 = msg_send![window, windowNumber];
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:282:19
+    |
+282 |     let app: id = msg_send![window, app];
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:284:31
+    |
+284 |         let running_app: id = msg_send![app, runningApplication];
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition value: `cargo-clippy`
+   --> src/macos/window_notifications.rs:286:28
+    |
+286 |             let pid: i32 = msg_send![running_app, processIdentifier];
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `mlua`, and `scripting`
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `sel_impl` crate for guidance on how handle this unexpected cfg
+    = help: the macro `sel_impl` may come from an old version of the `objc` crate, try updating your dependency with `cargo update -p objc`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `sel_impl` which comes from the expansion of the macro `msg_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: associated function `collect_all_windows_static` is never used
+   --> src/layout.rs:399:8
+    |
+313 | impl LayoutManager {
+    | ------------------ associated function in this implementation
+...
+399 |     fn collect_all_windows_static(node: &BSPNode, windows: &mut Vec<WindowId>) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: field `snap_threshold` is never read
+  --> src/snap.rs:52:5
+   |
+49 | pub struct SnapManager {
+   |            ----------- field in this struct
+...
+52 |     snap_threshold: f64,
+   |     ^^^^^^^^^^^^^^
+
+warning: methods `swap_windows` and `return_window_to_original` are never used
+   --> src/window_manager.rs:691:14
+    |
+95  | impl WindowManager {
+    | ------------------ methods in this implementation
+...
+691 |     async fn swap_windows(&mut self, window1_id: WindowId, window2_id: WindowId) -> Result<()> {
+    |              ^^^^^^^^^^^^
+...
+874 |     async fn return_window_to_original(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `skew` (lib) generated 25 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.87s
+     Running `target/debug/skew`
+[2025-07-24 14:11:00.574 INFO src/main.rs:114] Starting Skew window manager
+[2025-07-24 14:11:00.577 INFO /Users/nicojaffer/skew/src/config.rs:184] Configuration loaded and validated from "/Users/nicojaffer/.config/skew/config.toml"
+[2025-07-24 14:11:00.577 DEBUG src/macos/accessibility.rs:76] Initializing Accessibility Manager with real macOS APIs
+[2025-07-24 14:11:00.596 INFO src/macos/accessibility.rs:84] Accessibility permissions granted - full functionality available
+[2025-07-24 14:11:00.616 INFO src/macos/window_system.rs:80] Found 1 display(s)
+[2025-07-24 14:11:00.616 INFO src/macos/window_system.rs:102] Display 1: 1512x982 at (0, 0) - Main
+[2025-07-24 14:11:00.616 INFO src/hotkeys.rs:48] Hotkey manager initialized with 16 bindings
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "k" } -> move_up
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "w" } -> close_window
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "h" } -> move_left
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Ctrl, Alt], key: "r" } -> toggle_layout
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "h" } -> focus_left
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "space" } -> swap_main
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "m" } -> toggle_fullscreen
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "return" } -> exec:terminal
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "k" } -> focus_up
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "j" } -> focus_down
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "j" } -> move_down
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt], key: "l" } -> focus_right
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "r" } -> restart
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Alt, Shift], key: "l" } -> move_right
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Ctrl, Alt], key: "space" } -> toggle_layout
+[2025-07-24 14:11:00.616 DEBUG src/hotkeys.rs:53]   KeyCombination { modifiers: [Ctrl, Alt], key: "f" } -> toggle_float
+[2025-07-24 14:11:00.617 INFO src/macos/window_notifications.rs:86] Window drag notification observer started successfully
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:89] Creating snap zones for screen: Rect { x: 0.0, y: 0.0, width: 1512.0, height: 982.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] Center zone bounds: Rect { x: 302.40000000000003, y: 196.4, width: 907.1999999999999, height: 589.1999999999999 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] North zone bounds: Rect { x: 80.0, y: 0.0, width: 1352.0, height: 100.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] South zone bounds: Rect { x: 80.0, y: 882.0, width: 1352.0, height: 100.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] West zone bounds: Rect { x: 0.0, y: 80.0, width: 100.0, height: 822.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] East zone bounds: Rect { x: 1412.0, y: 80.0, width: 100.0, height: 822.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] NorthWest zone bounds: Rect { x: 0.0, y: 0.0, width: 80.0, height: 80.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] NorthEast zone bounds: Rect { x: 1432.0, y: 0.0, width: 80.0, height: 80.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] SouthWest zone bounds: Rect { x: 0.0, y: 902.0, width: 80.0, height: 80.0 }
+[2025-07-24 14:11:00.617 DEBUG src/snap.rs:222] SouthEast zone bounds: Rect { x: 1432.0, y: 902.0, width: 80.0, height: 80.0 }
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/window_manager.rs:143] Starting window manager event loop
+[2025-07-24 14:11:00.617 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:120] Starting window monitoring
+[2025-07-24 14:11:00.617 DEBUG /Users/nicojaffer/skew/src/focus.rs:32] Starting focus-follows-mouse with 100ms delay
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/ipc.rs:47] IPC server listening on /tmp/skew.sock
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:74] Starting hotkey manager with global event listening
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:77] Configured hotkey bindings:
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "k" } -> move_up
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "w" } -> close_window
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "h" } -> move_left
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Ctrl, Alt], key: "r" } -> toggle_layout
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "h" } -> focus_left
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "space" } -> swap_main
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "m" } -> toggle_fullscreen
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "return" } -> exec:terminal
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "k" } -> focus_up
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "j" } -> focus_down
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "j" } -> move_down
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt], key: "l" } -> focus_right
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "r" } -> restart
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Alt, Shift], key: "l" } -> move_right
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Ctrl, Alt], key: "space" } -> toggle_layout
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:79]   KeyCombination { modifiers: [Ctrl, Alt], key: "f" } -> toggle_float
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:117] Global hotkey listener started successfully
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/window_manager.rs:151] Applying initial layout to existing windows...
+[2025-07-24 14:11:00.617 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:00.617 INFO /Users/nicojaffer/skew/src/hotkeys.rs:183] Starting hotkey event processing
+[2025-07-24 14:11:00.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:00.627 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:00.627 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:00.627 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 15.0, y: 47.0, width: 1481.0, height: 919.0 }
+[2025-07-24 14:11:00.627 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 523.0, y: 68.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:00.627 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:163] New window detected: Untitled (Twilight)
+[2025-07-24 14:11:00.627 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:163] New window detected: Untitled (Ghostty)
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:00.628 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1001] Workspace changed: 1 -> 6
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1028] Window count changed: 0 -> 2 windows
+[2025-07-24 14:11:00.628 DEBUG src/window_manager.rs:929] Using most common workspace 1 for effective workspace detection
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1080] === LAYOUT APPLICATION START ===
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1081] Found 2 windows to layout in workspace 1
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1084] Applying layout to 2 windows in workspace 1 using BSP
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Twilight) at Rect { x: 15.0, y: 47.0, width: 1481.0, height: 919.0 }
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Ghostty) at Rect { x: 523.0, y: 68.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1106] Layout computation complete: 2 positions calculated
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(47272) should be at Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.628 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(49248) should be at Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.628 DEBUG src/macos/accessibility.rs:246] Moving ALL desktop windows using accessibility API
+[2025-07-24 14:11:00.628 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(47272): Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.628 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(49248): Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.628 DEBUG src/macos/accessibility.rs:262] Getting windows for PIDs: {10862, 59931}
+[2025-07-24 14:11:00.651 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:00.652 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:00.652 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 10862
+[2025-07-24 14:11:00.652 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(47272) (PID 10862, index 0) to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.652 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.659 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:00.659 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:00.659 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 59931
+[2025-07-24 14:11:00.659 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(49248) (PID 59931, index 0) to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1124] Successfully applied layout to all windows
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1184] === LAYOUT APPLICATION END ===
+[2025-07-24 14:11:00.660 INFO /Users/nicojaffer/skew/src/window_manager.rs:157] Initial layout application completed
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowCreated(Window { id: WindowId(47272), title: "Untitled", owner: "Twilight", owner_pid: 10862, rect: Rect { x: 15.0, y: 47.0, width: 1481.0, height: 919.0 }, is_minimized: false, is_focused: false, workspace_id: 1 })
+[2025-07-24 14:11:00.660 INFO /Users/nicojaffer/skew/src/window_manager.rs:198] 🆕 Window created: Untitled (Twilight)
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1061] 🚀 Forcing layout application
+[2025-07-24 14:11:00.660 DEBUG src/window_manager.rs:929] Using most common workspace 1 for effective workspace detection
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1080] === LAYOUT APPLICATION START ===
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1081] Found 2 windows to layout in workspace 1
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1084] Applying layout to 2 windows in workspace 1 using BSP
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Twilight) at Rect { x: 15.0, y: 47.0, width: 1481.0, height: 919.0 }
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Ghostty) at Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1106] Layout computation complete: 2 positions calculated
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(47272) should be at Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(49248) should be at Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG src/macos/accessibility.rs:246] Moving ALL desktop windows using accessibility API
+[2025-07-24 14:11:00.660 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(47272): Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(49248): Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.660 DEBUG src/macos/accessibility.rs:262] Getting windows for PIDs: {10862, 59931}
+[2025-07-24 14:11:00.685 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:00.763 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:00.763 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 10862
+[2025-07-24 14:11:00.763 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(47272) (PID 10862, index 0) to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.798 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.799 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:00.799 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:00.799 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 59931
+[2025-07-24 14:11:00.799 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(49248) (PID 59931, index 0) to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.800 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.800 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1124] Successfully applied layout to all windows
+[2025-07-24 14:11:00.800 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1184] === LAYOUT APPLICATION END ===
+[2025-07-24 14:11:00.800 DEBUG src/plugins.rs:155] Notifying plugins of window creation: Untitled
+[2025-07-24 14:11:00.800 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:00.801 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowCreated(Window { id: WindowId(49248), title: "Untitled", owner: "Ghostty", owner_pid: 59931, rect: Rect { x: 523.0, y: 68.0, width: 746.0, height: 950.0 }, is_minimized: false, is_focused: false, workspace_id: 1 })
+[2025-07-24 14:11:00.801 INFO /Users/nicojaffer/skew/src/window_manager.rs:198] 🆕 Window created: Untitled (Ghostty)
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1061] 🚀 Forcing layout application
+[2025-07-24 14:11:00.801 DEBUG src/window_manager.rs:929] Using most common workspace 1 for effective workspace detection
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1080] === LAYOUT APPLICATION START ===
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1081] Found 2 windows to layout in workspace 1
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1084] Applying layout to 2 windows in workspace 1 using BSP
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Twilight) at Rect { x: 14.0, y: 46.0, width: 911.0, height: 932.0 }
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1092]   Window to layout: Untitled (Ghostty) at Rect { x: 523.0, y: 68.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1106] Layout computation complete: 2 positions calculated
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(47272) should be at Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.801 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1108]   -> Window WindowId(49248) should be at Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.801 DEBUG src/macos/accessibility.rs:246] Moving ALL desktop windows using accessibility API
+[2025-07-24 14:11:00.801 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(47272): Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.801 DEBUG src/macos/accessibility.rs:250] Layout for window WindowId(49248): Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.801 DEBUG src/macos/accessibility.rs:262] Getting windows for PIDs: {59931, 10862}
+[2025-07-24 14:11:00.801 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:00.802 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:00.802 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 59931
+[2025-07-24 14:11:00.802 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(49248) (PID 59931, index 0) to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.802 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 761.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.802 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:00.803 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:00.803 DEBUG src/macos/accessibility.rs:268] Successfully got 1 window elements for PID 10862
+[2025-07-24 14:11:00.803 DEBUG src/macos/accessibility.rs:286] Moving window WindowId(47272) (PID 10862, index 0) to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.803 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 5.0, y: 5.0, width: 746.0, height: 972.0 }
+[2025-07-24 14:11:00.803 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1124] Successfully applied layout to all windows
+[2025-07-24 14:11:00.803 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:1184] === LAYOUT APPLICATION END ===
+[2025-07-24 14:11:00.803 DEBUG src/plugins.rs:155] Notifying plugins of window creation: Untitled
+[2025-07-24 14:11:01.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:01.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:01.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:01.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(47272), Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 })
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(47272) moved to Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: true, User dragging: false
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:225] ✅ Programmatic move completed for window WindowId(47272)
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 })
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: true, User dragging: false
+[2025-07-24 14:11:01.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:225] ✅ Programmatic move completed for window WindowId(49248)
+[2025-07-24 14:11:01.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:01.662 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:02.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:02.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:02.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:02.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:02.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:02.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:02.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:02.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:02.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:02.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:02.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:02.662 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:03.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:03.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:03.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:03.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:03.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:03.662 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:03.665 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:04.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:04.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:04.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:04.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:04.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:04.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:04.663 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:04.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:04.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:04.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:04.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:04.664 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:05.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:05.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 748.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 748.0, y: 32.0, width: 746.0, height: 950.0 })
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 748.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: false, User dragging: false
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:247] 👤 Manual user move detected for window WindowId(49248)
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:561] 🎯 handle_user_window_move called for window WindowId(49248) at Rect { x: 748.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:565]   -> Previous position: Some(Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 })
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:572]   -> Movement distance: 13.0px (dx: 13.0, dy: 0.0)
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:576] 🔄 User move detected for window WindowId(49248): 13.0px from Rect { x: 761.0, y: 32.0, width: 746.0, height: 950.0 } to Rect { x: 748.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:05.620 DEBUG src/snap.rs:440] Window center (1121, 507) in Center zone
+[2025-07-24 14:11:05.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:583] 🎯 Found snap target for window WindowId(49248): Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } (distance: 427.2px)
+[2025-07-24 14:11:05.620 INFO /Users/nicojaffer/skew/src/window_manager.rs:588] 📌 Snapping window WindowId(49248) to zone at Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:05.620 DEBUG src/macos/accessibility.rs:175] Moving window WindowId(49248) to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } via Accessibility API
+[2025-07-24 14:11:05.620 DEBUG src/macos/accessibility.rs:706] Refreshing accessibility cache for ALL applications
+[2025-07-24 14:11:05.620 DEBUG src/macos/accessibility.rs:889] Enumerating windows from ALL applications
+[2025-07-24 14:11:05.621 DEBUG src/macos/accessibility.rs:893] Found 729 total running processes
+[2025-07-24 14:11:05.667 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:05.667 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:05.667 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 59931
+[2025-07-24 14:11:05.727 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:05.727 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:05.727 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 10862
+[2025-07-24 14:11:06.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:06.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:06.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:06.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:06.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:07.405 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 855
+[2025-07-24 14:11:07.407 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 855
+[2025-07-24 14:11:07.407 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 855
+[2025-07-24 14:11:07.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:07.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:07.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:07.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:07.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:08.100 DEBUG src/macos/accessibility.rs:925] Total accessible windows cached: 3
+[2025-07-24 14:11:08.100 DEBUG src/macos/accessibility.rs:724] All windows accessibility cache refreshed with 3 windows
+[2025-07-24 14:11:08.101 DEBUG src/macos/accessibility.rs:678] Refreshing accessibility window cache
+[2025-07-24 14:11:08.101 WARN src/macos/accessibility.rs:237] Window WindowId(49248) not found in accessibility cache
+[2025-07-24 14:11:08.101 DEBUG src/macos/accessibility.rs:735] Searching for window WindowId(49248) by CGWindow ID
+[2025-07-24 14:11:08.101 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.106 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:08.107 DEBUG src/macos/accessibility.rs:742] Found CGWindow info for ID 49248: Untitled (Ghostty) at Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:08.107 DEBUG src/macos/accessibility.rs:765] Searching for accessibility window with PID 59931 at Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:08.107 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:08.107 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:08.107 DEBUG src/macos/accessibility.rs:783] Found matching accessibility window at Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:08.112 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:08.113 DEBUG src/macos/accessibility.rs:201] Successfully moved window WindowId(49248) via brute force search
+[2025-07-24 14:11:08.113 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:599] ✅ Successfully snapped window WindowId(49248)
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.113 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:08.114 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 })
+[2025-07-24 14:11:08.114 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 }
+[2025-07-24 14:11:08.114 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: true, User dragging: false
+[2025-07-24 14:11:08.114 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:225] ✅ Programmatic move completed for window WindowId(49248)
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.114 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.115 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:08.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: false, User dragging: false
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:247] 👤 Manual user move detected for window WindowId(49248)
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:561] 🎯 handle_user_window_move called for window WindowId(49248) at Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:565]   -> Previous position: Some(Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 })
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:572]   -> Movement distance: 306.2px (dx: 219.0, dy: 214.0)
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:576] 🔄 User move detected for window WindowId(49248): 306.2px from Rect { x: 597.0, y: 32.0, width: 746.0, height: 950.0 } to Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:08.620 DEBUG src/snap.rs:440] Window center (756, 491.5) in Center zone
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:583] 🎯 Found snap target for window WindowId(49248): Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } (distance: 0.5px)
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:603] 📍 Snap target found but distance not suitable: 0.5px
+[2025-07-24 14:11:08.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:620] Manual window move detected - layout may be disrupted
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:08.662 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:09.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:09.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:09.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:09.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:09.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:09.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:09.663 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:09.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:09.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:09.664 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:09.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:09.664 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:10.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:10.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: false, User dragging: false
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:247] 👤 Manual user move detected for window WindowId(49248)
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:561] 🎯 handle_user_window_move called for window WindowId(49248) at Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:565]   -> Previous position: Some(Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:572]   -> Movement distance: 98.0px (dx: 98.0, dy: 2.0)
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:576] 🔄 User move detected for window WindowId(49248): 98.0px from Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 } to Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.619 DEBUG src/snap.rs:440] Window center (658, 489.5) in Center zone
+[2025-07-24 14:11:10.619 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:583] 🎯 Found snap target for window WindowId(49248): Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } (distance: 98.0px)
+[2025-07-24 14:11:10.619 INFO /Users/nicojaffer/skew/src/window_manager.rs:588] 📌 Snapping window WindowId(49248) to zone at Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.619 DEBUG src/macos/accessibility.rs:175] Moving window WindowId(49248) to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } via Accessibility API
+[2025-07-24 14:11:10.619 DEBUG src/macos/accessibility.rs:706] Refreshing accessibility cache for ALL applications
+[2025-07-24 14:11:10.619 DEBUG src/macos/accessibility.rs:889] Enumerating windows from ALL applications
+[2025-07-24 14:11:10.619 DEBUG src/macos/accessibility.rs:893] Found 731 total running processes
+[2025-07-24 14:11:10.622 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:10.622 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:10.622 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 59931
+[2025-07-24 14:11:10.625 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:10.625 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:10.625 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 10862
+[2025-07-24 14:11:10.679 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 855
+[2025-07-24 14:11:10.679 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 855
+[2025-07-24 14:11:10.679 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 855
+[2025-07-24 14:11:10.697 DEBUG src/macos/accessibility.rs:925] Total accessible windows cached: 3
+[2025-07-24 14:11:10.697 DEBUG src/macos/accessibility.rs:724] All windows accessibility cache refreshed with 3 windows
+[2025-07-24 14:11:10.697 DEBUG src/macos/accessibility.rs:678] Refreshing accessibility window cache
+[2025-07-24 14:11:10.697 WARN src/macos/accessibility.rs:237] Window WindowId(49248) not found in accessibility cache
+[2025-07-24 14:11:10.697 DEBUG src/macos/accessibility.rs:735] Searching for window WindowId(49248) by CGWindow ID
+[2025-07-24 14:11:10.697 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:10.698 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:10.698 DEBUG src/macos/accessibility.rs:742] Found CGWindow info for ID 49248: Untitled (Ghostty) at Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.698 DEBUG src/macos/accessibility.rs:765] Searching for accessibility window with PID 59931 at Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.698 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:10.698 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:10.698 DEBUG src/macos/accessibility.rs:783] Found matching accessibility window at Rect { x: 280.0, y: 244.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.700 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:10.700 DEBUG src/macos/accessibility.rs:201] Successfully moved window WindowId(49248) via brute force search
+[2025-07-24 14:11:10.700 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:599] ✅ Successfully snapped window WindowId(49248)
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:10.700 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:11.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:11.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:11.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:11.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:11.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:11.621 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:11.621 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: true, User dragging: false
+[2025-07-24 14:11:11.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:225] ✅ Programmatic move completed for window WindowId(49248)
+[2025-07-24 14:11:11.662 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:11.663 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:11.664 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:11.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:11.664 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:11.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:11.664 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:12.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:12.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:12.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:12.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:12.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:12.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:12.662 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:13.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:13.621 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:13.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:13.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:13.621 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:13.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:13.663 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:14.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:14.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:14.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:14.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:14.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:14.662 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:14.664 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:15.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:15.619 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:15.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:15.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:15.619 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:15.662 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:15.663 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:15.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:15.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:15.663 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:15.663 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:15.664 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:16.619 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:16.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: false, User dragging: false
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:247] 👤 Manual user move detected for window WindowId(49248)
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:561] 🎯 handle_user_window_move called for window WindowId(49248) at Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:565]   -> Previous position: Some(Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:572]   -> Movement distance: 103.0px (dx: 103.0, dy: 0.0)
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:576] 🔄 User move detected for window WindowId(49248): 103.0px from Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 } to Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.621 DEBUG src/snap.rs:440] Window center (859, 491.5) in Center zone
+[2025-07-24 14:11:16.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:583] 🎯 Found snap target for window WindowId(49248): Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } (distance: 103.0px)
+[2025-07-24 14:11:16.621 INFO /Users/nicojaffer/skew/src/window_manager.rs:588] 📌 Snapping window WindowId(49248) to zone at Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.621 DEBUG src/macos/accessibility.rs:175] Moving window WindowId(49248) to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 } via Accessibility API
+[2025-07-24 14:11:16.621 DEBUG src/macos/accessibility.rs:706] Refreshing accessibility cache for ALL applications
+[2025-07-24 14:11:16.621 DEBUG src/macos/accessibility.rs:889] Enumerating windows from ALL applications
+[2025-07-24 14:11:16.621 DEBUG src/macos/accessibility.rs:893] Found 730 total running processes
+[2025-07-24 14:11:16.626 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:16.626 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:16.627 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 59931
+[2025-07-24 14:11:16.630 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 10862
+[2025-07-24 14:11:16.631 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 10862
+[2025-07-24 14:11:16.631 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 10862
+[2025-07-24 14:11:16.688 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 855
+[2025-07-24 14:11:16.688 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 855
+[2025-07-24 14:11:16.688 DEBUG src/macos/accessibility.rs:900] Found 1 windows for PID 855
+[2025-07-24 14:11:16.709 DEBUG src/macos/accessibility.rs:925] Total accessible windows cached: 3
+[2025-07-24 14:11:16.709 DEBUG src/macos/accessibility.rs:724] All windows accessibility cache refreshed with 3 windows
+[2025-07-24 14:11:16.709 DEBUG src/macos/accessibility.rs:678] Refreshing accessibility window cache
+[2025-07-24 14:11:16.710 WARN src/macos/accessibility.rs:237] Window WindowId(49248) not found in accessibility cache
+[2025-07-24 14:11:16.710 DEBUG src/macos/accessibility.rs:735] Searching for window WindowId(49248) by CGWindow ID
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:16.710 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:16.710 DEBUG src/macos/accessibility.rs:742] Found CGWindow info for ID 49248: Untitled (Ghostty) at Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.710 DEBUG src/macos/accessibility.rs:765] Searching for accessibility window with PID 59931 at Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.710 DEBUG src/macos/accessibility.rs:519] Processing 1 windows for PID 59931
+[2025-07-24 14:11:16.711 DEBUG src/macos/accessibility.rs:534] Found 1 tileable windows for PID 59931
+[2025-07-24 14:11:16.711 DEBUG src/macos/accessibility.rs:783] Found matching accessibility window at Rect { x: 481.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.712 DEBUG src/macos/accessibility.rs:360] Successfully set window rect to Rect { x: 378.0, y: 245.5, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:16.712 DEBUG src/macos/accessibility.rs:201] Successfully moved window WindowId(49248) via brute force search
+[2025-07-24 14:11:16.712 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:599] ✅ Successfully snapped window WindowId(49248)
+[2025-07-24 14:11:16.712 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:16.713 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:17.618 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:17.620 DEBUG src/macos/cgwindow.rs:89] Found 2 windows
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:136] Window scan found 2 windows
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Ghostty), workspace: 1, rect: Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/macos/window_system.rs:138] Window: Untitled (Twilight), workspace: 1, rect: Rect { x: 14.0, y: 46.0, width: 746.0, height: 936.0 }
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:194] Handling window event: WindowMoved(WindowId(49248), Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 })
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:215] 🔄 Window WindowId(49248) moved to Rect { x: 378.0, y: 246.0, width: 756.0, height: 491.0 }
+[2025-07-24 14:11:17.620 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:221]   -> Programmatic: true, User dragging: false
+[2025-07-24 14:11:17.621 DEBUG /Users/nicojaffer/skew/src/window_manager.rs:225] ✅ Programmatic move completed for window WindowId(49248)
+[2025-07-24 14:11:17.661 DEBUG src/macos/cgwindow.rs:60] Enumerating windows via CGWindowListCopyWindowInfo
+[2025-07-24 14:11:17.661 DEBUG src/macos/cgwindow.rs:130] Filtering out window Untitled (Alcove): layer=1000, on_screen=true, alpha=1
+[2025-07-24 14:11:17.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Ghostty) on workspace 1
+[2025-07-24 14:11:17.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 49248: Untitled (Ghostty)
+[2025-07-24 14:11:17.662 DEBUG src/macos/cgwindow.rs:171] Successfully parsed window: Untitled (Twilight) on workspace 1
+[2025-07-24 14:11:17.662 DEBUG src/macos/cgwindow.rs:176] Creating window with CGWindow ID 47272: Untitled (Twilight)
+[2025-07-24 14:11:17.662 DEBUG src/macos/cgwindow.rs:89] Found 2 windows

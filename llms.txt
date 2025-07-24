@@ -1,0 +1,81 @@
+# Skew - macOS Tiling Window Manager
+
+## Project Overview
+
+Skew is a production-ready tiling window manager for macOS written in Rust. It provides advanced window management through 7 different layout algorithms and deep macOS integration via Accessibility APIs.
+
+## Key Components
+
+- **CLI Interface** (`main.rs`): Command-line entry point
+- **Daemon Service** (`daemon.rs`): Background window management service  
+- **Window Manager** (`window_manager.rs`): Core window control logic
+- **Layout Engine** (`layout.rs`): 7 tiling algorithms (BSP, Stack, Grid, Spiral, Column, Monocle, Float)
+- **Focus Management** (`focus.rs`): Smart window focus and navigation
+- **Hotkey System** (`hotkeys.rs`): Global keyboard shortcuts
+- **IPC System** (`ipc.rs`): CLI-daemon communication
+- **Plugin System** (`plugins.rs`): Lua scripting integration
+- **macOS Integration** (`macos/`): Accessibility API bindings, Core Graphics window ops
+
+## Architecture
+
+**Binaries:** `skew` (CLI), `skewd` (daemon), `skew-cli` (utilities)
+
+**Key Dependencies:** 
+- macOS APIs: core-graphics, core-foundation, cocoa, objc
+- Async: tokio
+- Config: serde, toml, serde_json, serde_yaml  
+- Hotkeys: rdev
+- Plugins: mlua (optional)
+- CLI: clap
+
+## Development Workflow
+
+**Critical:** After making any changes, always run these commands in sequence:
+
+```bash
+cargo fmt        # Format code
+cargo clippy     # Run lints  
+cargo check      # Type check
+```
+
+**Testing:**
+```bash
+cargo test       # Run test suite
+cargo build      # Debug build
+cargo build --release  # Production build
+```
+
+**Features:**
+- `default`: Includes scripting support
+- `scripting`: Lua plugin system
+
+## macOS-Specific Considerations
+
+- Requires Accessibility API permissions to function
+- Uses Core Graphics for window operations
+- Integrates with macOS window system through Accessibility bindings
+- Hot-key handling works system-wide via rdev
+
+## Code Style
+
+- Standard Rust formatting (cargo fmt)
+- Follow existing patterns in the codebase
+- Use comprehensive error handling with anyhow/thiserror
+- Async code uses tokio runtime
+- Configuration supports TOML, JSON, and YAML
+
+## Common Operations
+
+- Window management through Accessibility APIs
+- Layout algorithms operate on window geometry 
+- IPC communication uses Unix sockets
+- Plugin system allows Lua scripting extensions
+- Hotkey bindings are configurable via TOML
+
+## Important Notes
+
+- This is production code - changes should be thoroughly tested
+- Accessibility permissions are critical for functionality
+- Multi-display support is built-in
+- Configuration is extensively validated
+- Error handling and logging are comprehensive throughout

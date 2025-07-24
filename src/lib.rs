@@ -5,6 +5,7 @@ pub mod ipc;
 pub mod layout;
 pub mod macos;
 pub mod plugins;
+pub mod snap;
 pub mod window_manager;
 
 pub use config::Config;
@@ -12,7 +13,7 @@ pub use window_manager::{Window, WindowManager};
 
 pub type Result<T> = anyhow::Result<T>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct WindowId(pub u32);
 
 #[derive(Debug, Clone, Copy)]

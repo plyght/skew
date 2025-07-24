@@ -1,6 +1,6 @@
 # Skew
 
-A tiling window manager for macOS written in Rust, inspired by [sway](https://swaywm.org/) and [yabai](https://github.com/koekeishiya/yabai).
+A tiling window manager for macOS written in Rust, inspired by [swaywm](https://swaywm.org/) and [yabai](https://github.com/koekeishiya/yabai).
 
 ## Features
 
@@ -231,7 +231,7 @@ cargo build --no-default-features
 
 Skew is inspired by and builds upon ideas from:
 
-- **[sway](https://swaywm.org/)**: A Wayland compositor and i3-compatible window manager for Linux
+- **[sway](https://swaywm.org/)**: A Wayland compositor and i3 compatible window manager for Linux
 - **[yabai](https://github.com/koekeishiya/yabai)**: A tiling window manager for macOS based on binary space partitioning
 - **[i3wm](https://i3wm.org/)**: The foundational tiling window manager that influenced many others
 

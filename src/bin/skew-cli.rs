@@ -1,5 +1,4 @@
 use skew::ipc::IpcClient;
-use tokio;
 
 #[tokio::main]
 async fn main() -> skew::Result<()> {

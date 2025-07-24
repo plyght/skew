@@ -22,6 +22,10 @@ pub struct GeneralConfig {
     pub border_color: String,
     #[serde(default = "default_active_border_color")]
     pub active_border_color: String,
+    #[serde(default = "default_position_threshold")]
+    pub position_threshold: f64,
+    #[serde(default = "default_size_threshold")]
+    pub size_threshold: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +76,12 @@ fn default_border_color() -> String {
 fn default_active_border_color() -> String {
     "#0080ff".to_string()
 }
+fn default_position_threshold() -> f64 {
+    5.0
+}
+fn default_size_threshold() -> f64 {
+    8.0
+}
 fn default_layout_type() -> String {
     "bsp".to_string()
 }
@@ -102,6 +112,8 @@ impl Default for Config {
                 border_width: default_border_width(),
                 border_color: default_border_color(),
                 active_border_color: default_active_border_color(),
+                position_threshold: default_position_threshold(),
+                size_threshold: default_size_threshold(),
             },
             layout: LayoutConfig {
                 default_layout: default_layout_type(),
@@ -305,7 +317,7 @@ impl HotkeyConfig {
             }
 
             let parts: Vec<&str> = key_combo.split('+').collect();
-            if parts.len() < 1 {
+            if parts.is_empty() {
                 return Err(anyhow::anyhow!(
                     "Invalid key combination format: '{}'",
                     key_combo
