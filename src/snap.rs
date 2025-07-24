@@ -261,25 +261,25 @@ impl SnapManager {
 
         // Convert legacy tuple format to explicit coordinate values
         // Values <= 1.0 are treated as relative for backward compatibility
-        let x_coord = if x_config <= 1.0 && x_config >= 0.0 {
+        let x_coord = if (0.0..=1.0).contains(&x_config) {
             CoordinateValue::Relative(x_config)
         } else {
             CoordinateValue::Absolute(x_config)
         };
 
-        let y_coord = if y_config <= 1.0 && y_config >= 0.0 {
+        let y_coord = if (0.0..=1.0).contains(&y_config) {
             CoordinateValue::Relative(y_config)
         } else {
             CoordinateValue::Absolute(y_config)
         };
 
-        let w_coord = if w_config <= 1.0 && w_config >= 0.0 {
+        let w_coord = if (0.0..=1.0).contains(&w_config) {
             CoordinateValue::Relative(w_config)
         } else {
             CoordinateValue::Absolute(w_config)
         };
 
-        let h_coord = if h_config <= 1.0 && h_config >= 0.0 {
+        let h_coord = if (0.0..=1.0).contains(&h_config) {
             CoordinateValue::Relative(h_config)
         } else {
             CoordinateValue::Absolute(h_config)

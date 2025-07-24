@@ -399,6 +399,7 @@ impl LayoutManager {
         }
     }
 
+    #[allow(dead_code)]
     fn collect_all_windows_static(node: &BSPNode, windows: &mut Vec<WindowId>) {
         if let Some(window_id) = node.window_id {
             windows.push(window_id);

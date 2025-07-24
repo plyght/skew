@@ -1027,7 +1027,7 @@ impl AccessibilityManager {
         }
 
         let hash = hasher.finish();
-        WindowId(((pid as u64) << 16 | (hash as u64 & 0xFFFF)) as u32)
+        WindowId(((pid as u64) << 16 | (hash & 0xFFFF)) as u32)
     }
 
     fn insert_window_with_collision_check(

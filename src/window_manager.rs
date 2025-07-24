@@ -113,7 +113,7 @@ impl WindowManager {
 
         // Initialize snap manager with screen rect
         let screen_rect = macos.get_screen_rect().await?;
-        let snap_manager = SnapManager::new(screen_rect, 50.0); // 50px snap threshold
+        let snap_manager = SnapManager::new(screen_rect, 50.0, 20.0, 100.0, 10.0); // 50px snap threshold, 20px edge zone, 100px corner, 10px margin
 
         Ok(Self {
             config,
@@ -944,6 +944,7 @@ impl WindowManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn swap_windows(&mut self, window1_id: WindowId, window2_id: WindowId) -> Result<()> {
         // Get the most current window positions, not cached ones
         let current_windows = self.macos.get_windows().await?;
@@ -1121,6 +1122,7 @@ impl WindowManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn return_window_to_original(
         &mut self,
         window_id: WindowId,

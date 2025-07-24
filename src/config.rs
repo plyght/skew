@@ -112,6 +112,8 @@ impl Default for Config {
                 border_width: default_border_width(),
                 border_color: default_border_color(),
                 active_border_color: default_active_border_color(),
+                position_threshold: default_position_threshold(),
+                size_threshold: default_size_threshold(),
             },
             layout: LayoutConfig {
                 default_layout: default_layout_type(),
