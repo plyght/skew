@@ -20,12 +20,23 @@ pub enum WindowDragEvent {
         final_rect: Rect,
         owner_pid: i32,
     },
+    ResizeStarted {
+        window_id: WindowId,
+        initial_rect: Rect,
+        owner_pid: i32,
+    },
+    ResizeEnded {
+        window_id: WindowId,
+        final_rect: Rect,
+        owner_pid: i32,
+    },
 }
 
 pub struct WindowDragNotificationObserver {
     event_sender: mpsc::Sender<WindowDragEvent>,
     observer: Option<id>,
     dragging_windows: Arc<Mutex<HashMap<WindowId, Rect>>>,
+    resizing_windows: Arc<Mutex<HashMap<WindowId, Rect>>>,
 }
 
 impl WindowDragNotificationObserver {
@@ -34,6 +45,7 @@ impl WindowDragNotificationObserver {
             event_sender,
             observer: None,
             dragging_windows: Arc::new(Mutex::new(HashMap::new())),
+            resizing_windows: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -50,12 +62,17 @@ impl WindowDragNotificationObserver {
 
             // Store reference to self in the observer for callbacks
             let dragging_windows = Arc::clone(&self.dragging_windows);
+            let resizing_windows = Arc::clone(&self.resizing_windows);
             let event_sender = self.event_sender.clone();
 
             // Set up the observer with our callback data
             (*observer).set_ivar(
                 "dragging_windows",
                 Box::into_raw(Box::new(dragging_windows)) as *const _ as *const std::ffi::c_void,
+            );
+            (*observer).set_ivar(
+                "resizing_windows",
+                Box::into_raw(Box::new(resizing_windows)) as *const _ as *const std::ffi::c_void,
             );
             (*observer).set_ivar(
                 "event_sender",
@@ -82,8 +99,28 @@ impl WindowDragNotificationObserver {
                 object: nil
             ];
 
+            // Register for NSWindowWillStartLiveResizeNotification
+            let will_start_resize_name = NSString::alloc(nil).init_str("NSWindowWillStartLiveResizeNotification");
+            let will_start_resize_selector = sel!(windowWillStartLiveResize:);
+            let _: () = msg_send![notification_center,
+                addObserver: observer
+                selector: will_start_resize_selector
+                name: will_start_resize_name
+                object: nil
+            ];
+
+            // Register for NSWindowDidEndLiveResizeNotification
+            let did_end_resize_name = NSString::alloc(nil).init_str("NSWindowDidEndLiveResizeNotification");
+            let did_end_resize_selector = sel!(windowDidEndLiveResize:);
+            let _: () = msg_send![notification_center,
+                addObserver: observer
+                selector: did_end_resize_selector
+                name: did_end_resize_name
+                object: nil
+            ];
+
             self.observer = Some(observer);
-            info!("Window drag notification observer started successfully");
+            info!("Window drag and resize notification observer started successfully");
             Ok(())
         }
     }
@@ -106,6 +143,14 @@ impl WindowDragNotificationObserver {
                     );
                 }
 
+                let resizing_windows_ptr: *const std::ffi::c_void =
+                    *(*observer).get_ivar("resizing_windows");
+                if !resizing_windows_ptr.is_null() {
+                    let _ = Box::from_raw(
+                        resizing_windows_ptr as *mut Arc<Mutex<HashMap<WindowId, Rect>>>,
+                    );
+                }
+
                 let event_sender_ptr: *const std::ffi::c_void =
                     *(*observer).get_ivar("event_sender");
                 if !event_sender_ptr.is_null() {
@@ -125,6 +170,7 @@ impl WindowDragNotificationObserver {
 
         // Add instance variables to store our callback data
         decl.add_ivar::<*const std::ffi::c_void>("dragging_windows");
+        decl.add_ivar::<*const std::ffi::c_void>("resizing_windows");
         decl.add_ivar::<*const std::ffi::c_void>("event_sender");
 
         // Add windowWillMove: method
@@ -137,6 +183,18 @@ impl WindowDragNotificationObserver {
         decl.add_method(
             sel!(windowDidMove:),
             window_did_move_callback as extern "C" fn(&mut Object, Sel, id),
+        );
+
+        // Add windowWillStartLiveResize: method
+        decl.add_method(
+            sel!(windowWillStartLiveResize:),
+            window_will_start_live_resize_callback as extern "C" fn(&mut Object, Sel, id),
+        );
+
+        // Add windowDidEndLiveResize: method
+        decl.add_method(
+            sel!(windowDidEndLiveResize:),
+            window_did_end_live_resize_callback as extern "C" fn(&mut Object, Sel, id),
         );
 
         Ok(decl.register())
@@ -238,6 +296,95 @@ extern "C" fn window_did_move_callback(observer: &mut Object, _cmd: Sel, notific
     }
 }
 
+extern "C" fn window_will_start_live_resize_callback(observer: &mut Object, _cmd: Sel, notification: id) {
+    unsafe {
+        debug!("NSWindowWillStartLiveResizeNotification received");
+
+        let window: id = msg_send![notification, object];
+        if window == nil {
+            return;
+        }
+
+        // Get window ID, initial rect, and owner PID
+        if let (Some(window_id), Some(rect), Some(owner_pid)) = (
+            get_window_id(window),
+            get_window_rect(window),
+            get_window_owner_pid(window),
+        ) {
+            debug!(
+                "Window resize started: {:?} at {:?} (PID: {})",
+                window_id, rect, owner_pid
+            );
+
+            // Get our callback data from the observer
+            if let (Some(resizing_windows), Some(event_sender)) =
+                (get_resizing_windows(observer), get_event_sender(observer))
+            {
+                // Store initial position
+                resizing_windows.lock().unwrap().insert(window_id, rect);
+
+                // Send resize started event
+                let event = WindowDragEvent::ResizeStarted {
+                    window_id,
+                    initial_rect: rect,
+                    owner_pid,
+                };
+
+                if let Err(e) = event_sender.try_send(event) {
+                    warn!("Failed to send resize started event: {}", e);
+                }
+            }
+        }
+    }
+}
+
+extern "C" fn window_did_end_live_resize_callback(observer: &mut Object, _cmd: Sel, notification: id) {
+    unsafe {
+        debug!("NSWindowDidEndLiveResizeNotification received");
+
+        let window: id = msg_send![notification, object];
+        if window == nil {
+            return;
+        }
+
+        // Get window ID, final rect, and owner PID
+        if let (Some(window_id), Some(final_rect), Some(owner_pid)) = (
+            get_window_id(window),
+            get_window_rect(window),
+            get_window_owner_pid(window),
+        ) {
+            debug!(
+                "Window resize ended: {:?} at {:?} (PID: {})",
+                window_id, final_rect, owner_pid
+            );
+
+            // Get our callback data from the observer
+            if let (Some(resizing_windows), Some(event_sender)) =
+                (get_resizing_windows(observer), get_event_sender(observer))
+            {
+                // Check if this window was being resized
+                if resizing_windows
+                    .lock()
+                    .unwrap()
+                    .remove(&window_id)
+                    .is_some()
+                {
+                    // Send resize ended event
+                    let event = WindowDragEvent::ResizeEnded {
+                        window_id,
+                        final_rect,
+                        owner_pid,
+                    };
+
+                    if let Err(e) = event_sender.try_send(event) {
+                        warn!("Failed to send resize ended event: {}", e);
+                    }
+                }
+            }
+        }
+    }
+}
+
 unsafe fn get_window_id(window: id) -> Option<WindowId> {
     // Get window number (NSWindow windowNumber)
     let window_number: i32 = msg_send![window, windowNumber];
@@ -293,6 +440,17 @@ unsafe fn get_window_owner_pid(window: id) -> Option<i32> {
 
 unsafe fn get_dragging_windows(observer: &Object) -> Option<Arc<Mutex<HashMap<WindowId, Rect>>>> {
     let ptr: *const std::ffi::c_void = *observer.get_ivar("dragging_windows");
+    if ptr.is_null() {
+        return None;
+    }
+    let boxed = Box::from_raw(ptr as *mut Arc<Mutex<HashMap<WindowId, Rect>>>);
+    let result = Some((*boxed).clone());
+    let _ = Box::into_raw(boxed); // Don't drop it
+    result
+}
+
+unsafe fn get_resizing_windows(observer: &Object) -> Option<Arc<Mutex<HashMap<WindowId, Rect>>>> {
+    let ptr: *const std::ffi::c_void = *observer.get_ivar("resizing_windows");
     if ptr.is_null() {
         return None;
     }

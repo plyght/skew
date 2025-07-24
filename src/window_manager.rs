@@ -549,6 +549,74 @@ impl WindowManager {
                     }
                 }
             }
+            WindowDragEvent::ResizeStarted {
+                window_id,
+                initial_rect,
+                owner_pid,
+            } => {
+                info!(
+                    "📏 RESIZE STARTED (NSWindow): window {:?} at {:?} (PID: {})",
+                    window_id, initial_rect, owner_pid
+                );
+
+                // Track that this window is being resized by the user
+                self.user_dragging_windows.insert(window_id);
+
+                // Store the original size for potential restoration
+                self.last_window_positions.insert(window_id, initial_rect);
+            }
+            WindowDragEvent::ResizeEnded {
+                window_id,
+                final_rect,
+                owner_pid,
+            } => {
+                info!(
+                    "📐 RESIZE ENDED (NSWindow): window {:?} at {:?} (PID: {})",
+                    window_id, final_rect, owner_pid
+                );
+
+                // Remove from user dragging set first
+                self.user_dragging_windows.remove(&window_id);
+
+                // Check if this window is managed by us
+                if self.windows.contains_key(&window_id) {
+                    // Update our internal state with final size
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = final_rect;
+                    }
+
+                    // For manual resize, snap back to proper layout position AND size
+                    let layout_target = self.get_layout_target_for_window(window_id).await;
+                    
+                    if let Some(target_rect) = layout_target {
+                        let position_distance = ((target_rect.x - final_rect.x).powi(2) + (target_rect.y - final_rect.y).powi(2)).sqrt();
+                        let size_distance = ((target_rect.width - final_rect.width).powi(2) + (target_rect.height - final_rect.height).powi(2)).sqrt();
+                        
+                        info!("🎯 RESIZE ENDED - target: {:?}, final: {:?}", target_rect, final_rect);
+                        info!("   Position distance: {:.1}px, Size distance: {:.1}px", position_distance, size_distance);
+                        
+                        // More sensitive thresholds - snap back for smaller changes
+                        if position_distance > 5.0 || size_distance > 8.0 {
+                            info!("📌 Restoring window {:?} to layout position and size: {:?}", window_id, target_rect);
+                            
+                            // Use a small delay to ensure the resize has completed
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                            
+                            // Move this window and any overlapping windows simultaneously
+                            self.snap_window_to_layout_with_displacement(window_id, target_rect).await?;
+                        } else {
+                            debug!("📍 Window already close to layout position and size - no restoration needed");
+                        }
+                    } else {
+                        warn!("🚫 No layout target found for resized window {:?}", window_id);
+                    }
+
+                    // Update position tracking after processing the resize
+                    self.last_window_positions.insert(window_id, final_rect);
+                } else {
+                    debug!("Resize ended for unmanaged window {:?}", window_id);
+                }
+            }
         }
         Ok(())
     }
@@ -585,26 +653,40 @@ impl WindowManager {
                     debug!("🎯 Found layout target for window {:?}: {:?} (distance: {:.1}px)", 
                            window_id, target_rect, layout_distance);
                     
-                    // If window is significantly displaced from its layout position, snap it back
-                    if layout_distance > 10.0 {
-                        info!("📌 Snapping window {:?} back to layout at {:?}", window_id, target_rect);
-                        self.programmatically_moving.insert(window_id);
+                    // More responsive snapping - reduced threshold
+                    if layout_distance > 5.0 {
+                        info!("📌 Snapping window {:?} back to layout at {:?} (distance: {:.1}px)", window_id, target_rect, layout_distance);
                         
-                        if let Err(e) = self.macos.move_window(window_id, target_rect).await {
-                            warn!("❌ Failed to snap window back to layout: {}", e);
-                        } else {
-                            // Update our internal state
-                            if let Some(window) = self.windows.get_mut(&window_id) {
-                                window.rect = target_rect;
-                            }
-                            debug!("✅ Successfully snapped window {:?} back to layout", window_id);
-                        }
+                        // Move this window and any overlapping windows simultaneously
+                        self.snap_window_to_layout_with_displacement(window_id, target_rect).await?;
                         return Ok(());
                     } else {
                         debug!("📍 Window already close to layout position: {:.1}px", layout_distance);
                     }
                 } else {
                     debug!("🚫 No layout target found for window {:?}", window_id);
+                }
+                
+                // Check if this was actually a resize (size changed significantly)
+                let width_change = (new_rect.width - prev_rect.width).abs();
+                let height_change = (new_rect.height - prev_rect.height).abs();
+                
+                if width_change > 5.0 || height_change > 5.0 {
+                    debug!("🔄 Size change detected: width Δ{:.1}px, height Δ{:.1}px", width_change, height_change);
+                    
+                    // This was a resize, not just a move - treat it like a resize ended event
+                    let layout_target = self.get_layout_target_for_window(window_id).await;
+                    if let Some(target_rect) = layout_target {
+                        let size_distance = ((target_rect.width - new_rect.width).powi(2) + (target_rect.height - new_rect.height).powi(2)).sqrt();
+                        
+                        if size_distance > 8.0 {
+                            info!("📐 Detected manual resize - restoring window {:?} to proper size: {:?}", window_id, target_rect);
+                            
+                            // Move this window and any overlapping windows simultaneously
+                            self.snap_window_to_layout_with_displacement(window_id, target_rect).await?;
+                            return Ok(());
+                        }
+                    }
                 }
                 
                 // If no snapping occurred, just note the move - don't reapply layout immediately
@@ -654,6 +736,100 @@ impl WindowManager {
         layouts.get(&window_id).copied()
     }
 
+    async fn snap_window_to_layout_with_displacement(
+        &mut self,
+        target_window_id: WindowId,
+        target_rect: Rect,
+    ) -> Result<()> {
+        info!("🔄 SNAP WITH DISPLACEMENT: Moving window {:?} to {:?}", target_window_id, target_rect);
+        
+        // Get all current layout positions for all windows
+        let effective_workspace = self.get_effective_current_workspace();
+        let workspace_windows: Vec<Window> = self
+            .windows
+            .values()
+            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+            .cloned()
+            .collect();
+
+        if workspace_windows.is_empty() {
+            return Ok(());
+        }
+
+        let screen_rect = self.macos.get_screen_rect().await?;
+        let workspace_refs: Vec<&Window> = workspace_windows.iter().collect();
+        
+        // Compute the full layout to get all correct positions
+        let mut temp_layout_manager = self.layout_manager.clone();
+        let all_layout_positions = temp_layout_manager.compute_layout(
+            &workspace_refs,
+            screen_rect,
+            &self.config.general,
+        );
+
+        info!("📐 Computed layout positions for {} windows", all_layout_positions.len());
+
+        // Find windows that would overlap with the target window's new position
+        let mut windows_to_move = std::collections::HashMap::new();
+        windows_to_move.insert(target_window_id, target_rect);
+
+        // Check for overlapping windows and add them to the move list
+        for (other_window_id, other_target_rect) in &all_layout_positions {
+            if *other_window_id == target_window_id {
+                continue; // Skip the target window itself
+            }
+
+            // Check if this other window's current position would overlap with target window's new position
+            if let Some(other_window) = self.windows.get(other_window_id) {
+                let current_rect = other_window.rect;
+                
+                // Check if current position overlaps with target's new position
+                let overlaps = !(current_rect.x + current_rect.width <= target_rect.x + 1.0 ||
+                               target_rect.x + target_rect.width <= current_rect.x + 1.0 ||
+                               current_rect.y + current_rect.height <= target_rect.y + 1.0 ||
+                               target_rect.y + target_rect.height <= current_rect.y + 1.0);
+
+                if overlaps {
+                    info!("🚨 OVERLAP DETECTED: Window {:?} at {:?} overlaps with target position {:?}", 
+                          other_window_id, current_rect, target_rect);
+                    windows_to_move.insert(*other_window_id, *other_target_rect);
+                }
+            }
+        }
+
+        info!("📋 Moving {} windows to prevent overlapping", windows_to_move.len());
+
+        // Mark all windows as being moved programmatically
+        for window_id in windows_to_move.keys() {
+            self.programmatically_moving.insert(*window_id);
+        }
+
+        // Move all windows simultaneously
+        let mut successful_moves = 0;
+        for (window_id, rect) in &windows_to_move {
+            match self.macos.move_window(*window_id, *rect).await {
+                Ok(_) => {
+                    info!("✅ Successfully moved window {:?} to {:?}", window_id, rect);
+                    // Update internal state
+                    if let Some(window) = self.windows.get_mut(window_id) {
+                        window.rect = *rect;
+                    }
+                    successful_moves += 1;
+                }
+                Err(e) => {
+                    warn!("❌ Failed to move window {:?}: {}", window_id, e);
+                    // Remove the programmatic flag since the move failed
+                    self.programmatically_moving.remove(window_id);
+                }
+            }
+        }
+
+        info!("🎯 DISPLACEMENT COMPLETE: Successfully moved {}/{} windows", 
+              successful_moves, windows_to_move.len());
+
+        Ok(())
+    }
+
     async fn handle_window_resize(
         &mut self,
         window_id: WindowId,
@@ -690,20 +866,12 @@ impl WindowManager {
             debug!("  -> Target layout: {:?}", target_rect);
             debug!("  -> Position distance: {:.1}px, Size distance: {:.1}px", pos_distance, size_distance);
             
-            // If window is significantly different from layout, snap it back
-            if pos_distance > 10.0 || size_distance > 10.0 {
+            // If window is significantly different from layout, snap it back (more sensitive thresholds)
+            if pos_distance > 5.0 || size_distance > 8.0 {
                 info!("📐 Snapping resized window {:?} back to layout at {:?}", window_id, target_rect);
-                self.programmatically_moving.insert(window_id);
                 
-                if let Err(e) = self.macos.move_window(window_id, *target_rect).await {
-                    warn!("❌ Failed to snap resized window back to layout: {}", e);
-                } else {
-                    // Update our internal state
-                    if let Some(window) = self.windows.get_mut(&window_id) {
-                        window.rect = *target_rect;
-                    }
-                    debug!("✅ Successfully snapped resized window {:?} back to layout", window_id);
-                }
+                // Use displacement function to prevent overlapping with other windows
+                self.snap_window_to_layout_with_displacement(window_id, *target_rect).await?;
             } else {
                 debug!("📐 Window already close to target layout - no snapping needed");
             }
@@ -1072,11 +1240,11 @@ impl WindowManager {
     }
 
     async fn apply_layout_internal(&mut self, force: bool) -> Result<()> {
-        // Throttle layout applications to prevent rapid fire updates, unless forced
+        // Reduced throttling for faster manual snapping, unless forced
         if !force {
             let now = std::time::Instant::now();
             if let Some(last_time) = self.last_layout_time {
-                if now.duration_since(last_time).as_millis() < 200 {
+                if now.duration_since(last_time).as_millis() < 50 { // Reduced from 200ms to 50ms
                     debug!("Layout application throttled - too soon since last application");
                     return Ok(());
                 }
@@ -1139,72 +1307,45 @@ impl WindowManager {
             self.programmatically_moving.insert(*window_id);
         }
 
-        // Use the new move_all_windows method to handle all windows at once
-        let workspace_windows_vec: Vec<Window> = workspace_windows.clone();
-        match self
-            .macos
-            .move_all_windows(&layouts, &workspace_windows_vec)
-            .await
-        {
-            Ok(_) => {
-                debug!("Successfully applied layout to all windows");
-                // Update our internal window state AND position tracking
-                for (window_id, rect) in layouts {
-                    if let Some(window) = self.windows.get_mut(&window_id) {
-                        window.rect = rect;
+        // Move windows in small batches to balance speed vs overlap prevention
+        let mut sorted_layouts: Vec<_> = layouts.iter().collect();
+        sorted_layouts.sort_by_key(|(window_id, _)| *window_id);
+        
+        let mut successful_moves = std::collections::HashMap::new();
+        const BATCH_SIZE: usize = 2; // Move 2 windows at a time
+        
+        for batch in sorted_layouts.chunks(BATCH_SIZE) {
+            // Move windows in batch sequentially but quickly
+            for (window_id, target_rect) in batch {
+                match self.macos.move_window(**window_id, **target_rect).await {
+                    Ok(_) => {
+                        debug!("✅ Successfully moved window {:?} to {:?}", window_id, target_rect);
+                        successful_moves.insert(**window_id, **target_rect);
                     }
-                    // Update position tracking to prevent feedback loops
-                    self.last_window_positions.insert(window_id, rect);
+                    Err(e) => {
+                        warn!("❌ Failed to move window {:?}: {}", window_id, e);
+                    }
                 }
             }
-            Err(e) => {
-                warn!(
-                    "Failed to apply layout to all windows: {}, falling back to individual moves",
-                    e
-                );
-
-                // Fall back to individual window moves
-                for (window_id, rect) in layouts {
-                    debug!(
-                        "Applying layout: moving window {:?} to {:?}",
-                        window_id, rect
-                    );
-                    for attempt in 0..3 {
-                        match self.macos.move_window(window_id, rect).await {
-                            Ok(_) => {
-                                debug!(
-                                    "Successfully moved window {:?} on attempt {}",
-                                    window_id,
-                                    attempt + 1
-                                );
-                                break;
-                            }
-                            Err(e) if attempt < 2 => {
-                                debug!(
-                                    "Failed to move window {:?} on attempt {}: {}, retrying",
-                                    window_id,
-                                    attempt + 1,
-                                    e
-                                );
-                                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-                            }
-                            Err(e) => {
-                                warn!(
-                                    "Failed to move window {:?} after 3 attempts: {}",
-                                    window_id, e
-                                );
-                            }
-                        }
-                    }
-
-                    // Update our internal window state and position tracking
-                    if let Some(window) = self.windows.get_mut(&window_id) {
-                        window.rect = rect;
-                    }
-                    // Update position tracking to prevent feedback loops
-                    self.last_window_positions.insert(window_id, rect);
-                }
+            
+            // Small delay between batches to prevent system overload
+            if sorted_layouts.len() > BATCH_SIZE {
+                tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
             }
+        }
+
+        if !successful_moves.is_empty() {
+            debug!("Successfully applied layout to {} windows", successful_moves.len());
+            // Update our internal window state AND position tracking only for successful moves
+            for (window_id, rect) in successful_moves {
+                if let Some(window) = self.windows.get_mut(&window_id) {
+                    window.rect = rect;
+                }
+                // Update position tracking to prevent feedback loops
+                self.last_window_positions.insert(window_id, rect);
+            }
+        } else {
+            warn!("No windows were successfully moved - layout application failed");
         }
         
         debug!("=== LAYOUT APPLICATION END ===");
