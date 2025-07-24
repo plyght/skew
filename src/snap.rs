@@ -15,6 +15,21 @@ pub enum SnapRegion {
     SouthWest,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CoordinateValue {
+    Absolute(f64),
+    Relative(f64),
+}
+
+impl CoordinateValue {
+    pub fn resolve(&self, base_value: f64) -> f64 {
+        match self {
+            CoordinateValue::Absolute(value) => *value,
+            CoordinateValue::Relative(percentage) => base_value * percentage,
+        }
+    }
+}
+
 impl SnapRegion {
     pub fn name(&self) -> &'static str {
         match self {
@@ -50,6 +65,9 @@ pub struct SnapManager {
     screen_rect: Rect,
     snap_zones: Vec<SnapZone>,
     snap_threshold: f64,
+    edge_zone_width: f64,
+    corner_size: f64,
+    margin: f64,
     window_drag_states: HashMap<WindowId, WindowDragState>,
 }
 
@@ -63,11 +81,14 @@ struct WindowDragState {
 }
 
 impl SnapManager {
-    pub fn new(screen_rect: Rect, snap_threshold: f64) -> Self {
+    pub fn new(screen_rect: Rect, snap_threshold: f64, edge_zone_width: f64, corner_size: f64, margin: f64) -> Self {
         let mut manager = Self {
             screen_rect,
             snap_zones: Vec::new(),
             snap_threshold,
+            edge_zone_width,
+            corner_size,
+            margin,
             window_drag_states: HashMap::new(),
         };
         manager.update_snap_zones(screen_rect);
@@ -82,9 +103,9 @@ impl SnapManager {
     fn update_snap_zones(&mut self, screen_rect: Rect) {
         self.snap_zones.clear();
 
-        let edge_zone_width = 100.0; // Narrower zones to reduce interference
-        let corner_size = 80.0; // Smaller corner zones
-        let margin = 5.0; // Smaller margin for more screen space
+        let edge_zone_width = self.edge_zone_width;
+        let corner_size = self.corner_size;
+        let margin = self.margin;
 
         debug!("Creating snap zones for screen: {:?}", screen_rect);
 
@@ -231,31 +252,48 @@ impl SnapManager {
 
     fn create_absolute_zone_rect(&self, screen_rect: Rect, config: (f64, f64, f64, f64)) -> Rect {
         let (x_config, y_config, w_config, h_config) = config;
-
-        // Handle both absolute coordinates and relative percentages
-        let x = if x_config <= 1.0 {
-            screen_rect.x + screen_rect.width * x_config
+        
+        // Convert legacy tuple format to explicit coordinate values
+        // Values <= 1.0 are treated as relative for backward compatibility
+        let x_coord = if x_config <= 1.0 && x_config >= 0.0 {
+            CoordinateValue::Relative(x_config)
         } else {
-            screen_rect.x + x_config
+            CoordinateValue::Absolute(x_config)
         };
-
-        let y = if y_config <= 1.0 {
-            screen_rect.y + screen_rect.height * y_config
+        
+        let y_coord = if y_config <= 1.0 && y_config >= 0.0 {
+            CoordinateValue::Relative(y_config)
         } else {
-            screen_rect.y + y_config
+            CoordinateValue::Absolute(y_config)
         };
-
-        let width = if w_config <= 1.0 {
-            screen_rect.width * w_config
+        
+        let w_coord = if w_config <= 1.0 && w_config >= 0.0 {
+            CoordinateValue::Relative(w_config)
         } else {
-            w_config
+            CoordinateValue::Absolute(w_config)
         };
-
-        let height = if h_config <= 1.0 {
-            screen_rect.height * h_config
+        
+        let h_coord = if h_config <= 1.0 && h_config >= 0.0 {
+            CoordinateValue::Relative(h_config)
         } else {
-            h_config
+            CoordinateValue::Absolute(h_config)
         };
+        
+        self.create_zone_rect_from_coordinates(screen_rect, x_coord, y_coord, w_coord, h_coord)
+    }
+    
+    fn create_zone_rect_from_coordinates(
+        &self, 
+        screen_rect: Rect, 
+        x_coord: CoordinateValue, 
+        y_coord: CoordinateValue, 
+        w_coord: CoordinateValue, 
+        h_coord: CoordinateValue
+    ) -> Rect {
+        let x = screen_rect.x + x_coord.resolve(screen_rect.width);
+        let y = screen_rect.y + y_coord.resolve(screen_rect.height);
+        let width = w_coord.resolve(screen_rect.width);
+        let height = h_coord.resolve(screen_rect.height);
 
         Rect::new(x, y, width, height)
     }
@@ -303,8 +341,8 @@ impl SnapManager {
                 final_rect
             );
 
-            // Use simpler thresholds to reduce complexity
-            let min_distance = 20.0; // Fixed minimum distance - simpler than using snap_threshold
+            // Use configurable threshold for minimum drag distance
+            let min_distance = self.snap_threshold;
 
             if drag_distance > min_distance {
                 debug!("✅ Drag qualifies for processing, checking targets...");

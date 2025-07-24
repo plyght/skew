@@ -595,8 +595,8 @@ impl WindowManager {
                         info!("🎯 RESIZE ENDED - target: {:?}, final: {:?}", target_rect, final_rect);
                         info!("   Position distance: {:.1}px, Size distance: {:.1}px", position_distance, size_distance);
                         
-                        // More sensitive thresholds - snap back for smaller changes
-                        if position_distance > 5.0 || size_distance > 8.0 {
+                        // Use configurable thresholds for position and size sensitivity
+                        if position_distance > self.config.general.position_threshold || size_distance > self.config.general.size_threshold {
                             info!("📌 Restoring window {:?} to layout position and size: {:?}", window_id, target_rect);
                             
                             // Use a small delay to ensure the resize has completed

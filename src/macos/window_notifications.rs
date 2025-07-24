@@ -401,12 +401,20 @@ unsafe fn get_window_rect(window: id) -> Option<Rect> {
 
     // Convert from Cocoa coordinates (origin at bottom-left) to our coordinates (origin at top-left)
     let screen_height = {
-        let main_screen: id = {
+        // Get the screen associated with this specific window
+        let window_screen: id = msg_send![window, screen];
+        
+        if window_screen.is_null() {
+            // Fallback to main screen if window screen is not available
             let ns_screen_class = Class::get("NSScreen").unwrap();
-            msg_send![ns_screen_class, mainScreen]
-        };
-        let screen_frame: cocoa::foundation::NSRect = msg_send![main_screen, frame];
-        screen_frame.size.height
+            let main_screen: id = msg_send![ns_screen_class, mainScreen];
+            let screen_frame: cocoa::foundation::NSRect = msg_send![main_screen, frame];
+            screen_frame.size.height
+        } else {
+            // Use the screen associated with the window
+            let screen_frame: cocoa::foundation::NSRect = msg_send![window_screen, frame];
+            screen_frame.size.height
+        }
     };
 
     let y_flipped = screen_height - frame.origin.y - frame.size.height;

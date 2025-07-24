@@ -62,6 +62,7 @@ const K_AXFOCUSED_WINDOW_ATTRIBUTE: &str = "AXFocusedWindow";
 const K_AXPOSITION_ATTRIBUTE: &str = "AXPosition";
 const K_AXSIZE_ATTRIBUTE: &str = "AXSize";
 const K_AXWINDOWS_ATTRIBUTE: &str = "AXWindows";
+const K_AXTITLE_ATTRIBUTE: &str = "AXTitle";
 const K_AXRAISE_ACTION: &str = "AXRaise";
 const K_AXPRESS_ACTION: &str = "AXPress";
 
@@ -968,23 +969,65 @@ impl AccessibilityManager {
         Ok(())
     }
 
+    fn get_window_title(&self, element: AXUIElementRef) -> Option<String> {
+        unsafe {
+            let title_attr = CFString::new(K_AXTITLE_ATTRIBUTE);
+            let mut title_value: CFTypeRef = std::ptr::null_mut();
+            
+            let result = AXUIElementCopyAttributeValue(
+                element,
+                title_attr.as_concrete_TypeRef(),
+                &mut title_value,
+            );
+            
+            if result == K_AXERROR_SUCCESS && !title_value.is_null() {
+                let title_string = CFString::wrap_under_get_rule(title_value as CFStringRef);
+                let title = title_string.to_string();
+                CFRelease(title_value);
+                Some(title)
+            } else {
+                None
+            }
+        }
+    }
+
     fn generate_window_id(
         &self,
         element: AXUIElementRef,
         pid: i32,
         index: Option<usize>,
     ) -> WindowId {
-        let ptr_val = element as usize;
-        let hash1 = ptr_val.wrapping_mul(0x9e3779b9);
-        let mut hash2 = hash1.wrapping_add(pid as usize);
-
-        if let Some(idx) = index {
-            hash2 = hash2.wrapping_add(idx);
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        
+        // Hash the PID as the primary identifier
+        pid.hash(&mut hasher);
+        
+        // Try to get window title for stable identification
+        if let Some(title) = self.get_window_title(element) {
+            title.hash(&mut hasher);
+        } else {
+            // Fallback to position and size for stability
+            if let Ok(Some(rect)) = self.get_window_rect(element) {
+                (rect.x as i32).hash(&mut hasher);
+                (rect.y as i32).hash(&mut hasher);
+                (rect.width as i32).hash(&mut hasher);
+                (rect.height as i32).hash(&mut hasher);
+            } else {
+                // Last resort: use pointer but warn about instability
+                debug!("Warning: Using unstable pointer-based window ID for window without title or rect");
+                (element as usize).hash(&mut hasher);
+            }
         }
-
-        let hash3 = hash2.wrapping_mul(0x85ebca6b);
-        let final_hash = (hash3 >> 16) ^ (hash3 & 0xFFFF);
-        WindowId(((pid as u64) << 16 | (final_hash as u64 & 0xFFFF)) as u32)
+        
+        if let Some(idx) = index {
+            idx.hash(&mut hasher);
+        }
+        
+        let hash = hasher.finish();
+        WindowId(((pid as u64) << 16 | (hash as u64 & 0xFFFF)) as u32)
     }
 
     fn insert_window_with_collision_check(
