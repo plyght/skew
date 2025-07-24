@@ -121,12 +121,11 @@ impl MacOSWindowSystem {
 
         let sender = self.event_sender.clone();
         tokio::spawn(async move {
-            // Window monitoring at 200ms provides responsive detection of window changes
+            // Window monitoring at 1000ms provides balanced detection of window changes
             // TODO: Make this configurable via skew.toml with key 'window_monitor_interval_ms'
-            // Recommended range: 100-500ms (lower = more responsive, higher = less CPU usage)
-            // Note: This interval should be configurable in production as it can be
-            // performance-intensive with CGWindowListCopyWindowInfo calls
-            let mut interval = interval(Duration::from_millis(200));
+            // Recommended range: 500-2000ms (lower = more responsive, higher = less CPU usage)
+            // Note: 200ms was causing excessive CPU usage and layout thrashing
+            let mut interval = interval(Duration::from_millis(1000));
             let mut last_windows = Vec::new();
 
             loop {

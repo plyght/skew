@@ -82,9 +82,9 @@ impl SnapManager {
     fn update_snap_zones(&mut self, screen_rect: Rect) {
         self.snap_zones.clear();
 
-        let edge_zone_width = 150.0; // Wider edge zones for easier targeting
-        let corner_size = 100.0; // Corner zones at edges
-        let margin = 8.0; // Small margin from screen edges
+        let edge_zone_width = 100.0; // Narrower zones to reduce interference
+        let corner_size = 80.0; // Smaller corner zones
+        let margin = 5.0; // Smaller margin for more screen space
 
         debug!("Creating snap zones for screen: {:?}", screen_rect);
 
@@ -303,11 +303,10 @@ impl SnapManager {
                 final_rect
             );
 
-            // Use configurable thresholds for better user experience
-            let min_time_ms = 100u128; // 100ms minimum drag time
-            let min_distance = self.snap_threshold; // Use snap_threshold directly for distance
+            // Use simpler thresholds to reduce complexity
+            let min_distance = 20.0; // Fixed minimum distance - simpler than using snap_threshold
 
-            if drag_duration.as_millis() > min_time_ms && drag_distance > min_distance {
+            if drag_distance > min_distance {
                 debug!("✅ Drag qualifies for processing, checking targets...");
 
                 let center_x = final_rect.x + final_rect.width / 2.0;
@@ -370,9 +369,7 @@ impl SnapManager {
                 }
             } else {
                 debug!(
-                    "⏱️ Drag too short/small for processing (duration: {}ms < {}ms OR distance: {:.1}px < {:.1}px), returning to original",
-                    drag_duration.as_millis(),
-                    min_time_ms,
+                    "⏱️ Drag too small for processing (distance: {:.1}px < {:.1}px), returning to original",
                     drag_distance,
                     min_distance
                 );

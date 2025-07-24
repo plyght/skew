@@ -78,14 +78,18 @@ pub struct WindowManager {
     drag_observer: WindowDragNotificationObserver,
     drag_event_rx: mpsc::Receiver<WindowDragEvent>,
 
-    // Track windows being moved programmatically to avoid snap conflicts
+    // Simplified tracking: only track programmatic moves to prevent feedback
     programmatically_moving: std::collections::HashSet<WindowId>,
-
-    // Track actual user drag state (via NSWindow notifications)
+    
+    // Track windows currently being dragged by user
     user_dragging_windows: std::collections::HashSet<WindowId>,
 
-    // Track window previous positions for immediate drag detection
-    previous_window_positions: std::collections::HashMap<WindowId, Rect>,
+    // Track last known window positions for delta detection
+    last_window_positions: std::collections::HashMap<WindowId, Rect>,
+    
+    // Simplified layout state tracking
+    layout_needs_update: bool,
+    last_layout_time: Option<std::time::Instant>,
 }
 
 impl WindowManager {
@@ -129,7 +133,9 @@ impl WindowManager {
             drag_event_rx,
             programmatically_moving: std::collections::HashSet::new(),
             user_dragging_windows: std::collections::HashSet::new(),
-            previous_window_positions: std::collections::HashMap::new(),
+            last_window_positions: std::collections::HashMap::new(),
+            layout_needs_update: true,
+            last_layout_time: None,
         })
     }
 
@@ -144,6 +150,9 @@ impl WindowManager {
         // Apply layout to existing windows on startup
         info!("Applying initial layout to existing windows...");
         self.refresh_windows().await?;
+        
+        // Force layout application on startup
+        self.layout_needs_update = true;
         self.apply_layout().await?;
         info!("Initial layout application completed");
 
@@ -186,48 +195,75 @@ impl WindowManager {
 
         match event {
             WindowEvent::WindowCreated(window) => {
+                info!("🆕 Window created: {} ({})", window.title, window.owner);
                 self.windows.insert(window.id, window.clone());
-                self.apply_layout().await?;
+                self.layout_needs_update = true;
+                // Force layout application for new windows since this significantly changes the layout
+                self.apply_layout_force().await?;
                 self.plugin_manager.on_window_created(&window)?;
             }
             WindowEvent::WindowDestroyed(id) => {
                 if let Some(window) = self.windows.remove(&id) {
-                    self.apply_layout().await?;
+                    info!("🗑️ Window destroyed: {} ({})", window.title, window.owner);
+                    self.layout_needs_update = true;
+                    // Force layout application for destroyed windows since this significantly changes the layout
+                    self.apply_layout_force().await?;
                     self.plugin_manager.on_window_destroyed(&window)?;
                 }
             }
             WindowEvent::WindowMoved(id, new_rect) => {
-                // Handle programmatic move cleanup
-                if self.programmatically_moving.contains(&id) {
-                    debug!("Ignoring programmatic move for window {:?}", id);
+                debug!("🔄 Window {:?} moved to {:?}", id, new_rect);
+                
+                // Check if this is a programmatic move
+                let is_programmatic = self.programmatically_moving.contains(&id);
+                let is_user_dragging = self.user_dragging_windows.contains(&id);
+                
+                debug!("  -> Programmatic: {}, User dragging: {}", is_programmatic, is_user_dragging);
+                
+                // Handle programmatic move cleanup - just update position and clear flag
+                if is_programmatic {
+                    debug!("✅ Programmatic move completed for window {:?}", id);
                     self.programmatically_moving.remove(&id);
                     if let Some(window) = self.windows.get_mut(&id) {
                         window.rect = new_rect;
                     }
-                    // Update previous position tracking for programmatic moves
-                    self.previous_window_positions.insert(id, new_rect);
-                } else if self.user_dragging_windows.contains(&id) {
-                    // This is a user drag that NSWindow notifications already started tracking
-                    debug!(
-                        "Window {:?} moved during NSWindow drag to {:?}",
-                        id, new_rect
-                    );
-                    if let Some(window) = self.windows.get_mut(&id) {
-                        window.rect = new_rect;
-                    }
-                    // Update position tracking but don't trigger immediate positioning
-                    self.previous_window_positions.insert(id, new_rect);
-                } else {
-                    // This is a user move - process for potential snapping
-                    debug!("Window {:?} moved to {:?}", id, new_rect);
-                    self.handle_immediate_window_positioning(id, new_rect)
-                        .await?;
+                    self.last_window_positions.insert(id, new_rect);
+                    return Ok(());
                 }
-            }
-            WindowEvent::WindowResized(id, new_rect) => {
+                
+                // Update window position
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.rect = new_rect;
                 }
+                
+                // If user is dragging, let the drag system handle positioning
+                if is_user_dragging {
+                    debug!("🖱️ Window {:?} moved during user drag", id);
+                    self.last_window_positions.insert(id, new_rect);
+                    return Ok(());
+                }
+                
+                // This is a manual user move - trigger positioning logic
+                debug!("👤 Manual user move detected for window {:?}", id);
+                self.handle_user_window_move(id, new_rect).await?;
+                
+                // Update position tracking AFTER processing the move
+                self.last_window_positions.insert(id, new_rect);
+            }
+            WindowEvent::WindowResized(id, new_rect) => {
+                debug!("📏 Window {:?} resized to {:?}", id, new_rect);
+                
+                // Update window position
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.rect = new_rect;
+                }
+                
+                // For manual resizes, snap back to proper layout size
+                debug!("👤 Manual resize detected - snapping back to layout");
+                self.handle_window_resize(id, new_rect).await?;
+                
+                // Update position tracking AFTER processing the resize
+                self.last_window_positions.insert(id, new_rect);
             }
             WindowEvent::WindowFocused(id) => {
                 for window in self.windows.values_mut() {
@@ -238,12 +274,15 @@ impl WindowManager {
             WindowEvent::WindowMinimized(id) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.is_minimized = true;
-                    self.apply_layout().await?;
+                    self.layout_needs_update = true;
+                    // Don't apply layout immediately - let it happen naturally
                 }
             }
             WindowEvent::WindowUnminimized(id) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.is_minimized = false;
+                    self.layout_needs_update = true;
+                    // Apply layout when window comes back since it should be positioned
                     self.apply_layout().await?;
                 }
             }
@@ -317,6 +356,7 @@ impl WindowManager {
             }
             Command::ToggleLayout => {
                 self.layout_manager.toggle_layout();
+                self.layout_needs_update = true;
                 self.apply_layout().await?;
                 info!(
                     "Toggled layout to: {:?}",
@@ -326,6 +366,7 @@ impl WindowManager {
             Command::ToggleFloat => {
                 if let Some(_focused_id) = self.get_focused_window_id() {
                     // For now, just apply layout - a full implementation would track floating state
+                    self.layout_needs_update = true;
                     self.apply_layout().await?;
                     info!("Toggled float for focused window");
                 }
@@ -411,7 +452,7 @@ impl WindowManager {
                 self.snap_manager.start_window_drag(window_id, initial_rect);
 
                 // Store the original position for potential restoration
-                self.previous_window_positions
+                self.last_window_positions
                     .insert(window_id, initial_rect);
             }
             WindowDragEvent::DragEnded {
@@ -464,7 +505,7 @@ impl WindowManager {
                                     if let Some(window) = self.windows.get_mut(&window_id) {
                                         window.rect = snap_rect;
                                     }
-                                    self.previous_window_positions.insert(window_id, snap_rect);
+                                    self.last_window_positions.insert(window_id, snap_rect);
                                 }
                             }
                             crate::snap::DragResult::SwapWithWindow(target_id, original_rect) => {
@@ -494,7 +535,7 @@ impl WindowManager {
                                     if let Some(window) = self.windows.get_mut(&window_id) {
                                         window.rect = original_rect;
                                     }
-                                    self.previous_window_positions
+                                    self.last_window_positions
                                         .insert(window_id, original_rect);
                                 }
                             }
@@ -512,130 +553,162 @@ impl WindowManager {
         Ok(())
     }
 
-    async fn handle_immediate_window_positioning(
+    async fn handle_user_window_move(
         &mut self,
         window_id: WindowId,
         new_rect: Rect,
     ) -> Result<()> {
-        // Skip immediate positioning if this window is being dragged via NSWindow notifications
-        // The NSWindow drag system will handle the positioning when the drag ends
-        if self.user_dragging_windows.contains(&window_id) {
-            debug!(
-                "Skipping immediate positioning for window {:?} - NSWindow drag in progress",
-                window_id
-            );
-            // Still update our internal state
-            self.previous_window_positions.insert(window_id, new_rect);
-            if let Some(window) = self.windows.get_mut(&window_id) {
-                window.rect = new_rect;
-            }
-            return Ok(());
-        }
+        debug!("🎯 handle_user_window_move called for window {:?} at {:?}", window_id, new_rect);
+        
+        // Get previous position to check for significant movement
+        let prev_rect = self.last_window_positions.get(&window_id).copied();
+        debug!("  -> Previous position: {:?}", prev_rect);
 
-        let previous_rect = self.previous_window_positions.get(&window_id).copied();
-
-        // Update our records first
-        self.previous_window_positions.insert(window_id, new_rect);
-        if let Some(window) = self.windows.get_mut(&window_id) {
-            window.rect = new_rect;
-        }
-
-        if let Some(prev_rect) = previous_rect {
-            // Check if this is a significant move that suggests user repositioning
+        if let Some(prev_rect) = prev_rect {
             let dx = (new_rect.x - prev_rect.x).abs();
             let dy = (new_rect.y - prev_rect.y).abs();
             let distance = (dx * dx + dy * dy).sqrt();
+            
+            debug!("  -> Movement distance: {:.1}px (dx: {:.1}, dy: {:.1})", distance, dx, dy);
+            
+            // Very low threshold to catch even small movements (>0.5px)
+            if distance > 0.5 {
+                debug!("🔄 User move detected for window {:?}: {:.1}px from {:?} to {:?}", 
+                       window_id, distance, prev_rect, new_rect);
 
-            // If window moved significantly, immediately check for snap zones
-            if distance > 20.0 {
-                // Higher threshold for immediate snapping
-                debug!(
-                    "Window {:?} moved significantly from {:?} to {:?}, checking snap zones",
-                    window_id, prev_rect, new_rect
-                );
-
-                // Check if the window center is in a snap zone
-                let center_x = new_rect.x + new_rect.width / 2.0;
-                let center_y = new_rect.y + new_rect.height / 2.0;
-
-                // Check which zone the window is in
-                let current_zone = self.snap_manager.find_zone_at_point(center_x, center_y);
-
-                match current_zone {
-                    Some(crate::snap::SnapRegion::Center) => {
-                        // Center zone: check for window swap first
-                        let effective_workspace = self.get_effective_current_workspace();
-                        let workspace_windows: Vec<&Window> = self
-                            .windows
-                            .values()
-                            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
-                            .collect();
-
-                        if let Some(target_window_id) = self.snap_manager.find_window_under_drag(
-                            window_id,
-                            new_rect,
-                            &workspace_windows,
-                        ) {
-                            debug!(
-                                "🔄 Window in center zone over another window, swapping positions"
-                            );
-                            self.swap_windows(window_id, target_window_id).await?;
+                // For manual moves, snap back to proper layout position instead of snap zones
+                let layout_target = self.get_layout_target_for_window(window_id).await;
+                
+                if let Some(target_rect) = layout_target {
+                    let layout_distance = ((target_rect.x - new_rect.x).powi(2) + (target_rect.y - new_rect.y).powi(2)).sqrt();
+                    
+                    debug!("🎯 Found layout target for window {:?}: {:?} (distance: {:.1}px)", 
+                           window_id, target_rect, layout_distance);
+                    
+                    // If window is significantly displaced from its layout position, snap it back
+                    if layout_distance > 10.0 {
+                        info!("📌 Snapping window {:?} back to layout at {:?}", window_id, target_rect);
+                        self.programmatically_moving.insert(window_id);
+                        
+                        if let Err(e) = self.macos.move_window(window_id, target_rect).await {
+                            warn!("❌ Failed to snap window back to layout: {}", e);
                         } else {
-                            debug!("↩️ Window in center zone but no target, returning to original");
-                            self.return_window_to_original(window_id, prev_rect).await?;
-                        }
-                    }
-                    Some(_) => {
-                        // Edge or corner zone: snap to that zone
-                        if let Some(snap_rect) = self.snap_manager.find_snap_target(new_rect) {
-                            // Check if we need to snap (avoid redundant moves)
-                            let snap_dx = (snap_rect.x - new_rect.x).abs();
-                            let snap_dy = (snap_rect.y - new_rect.y).abs();
-                            let snap_dw = (snap_rect.width - new_rect.width).abs();
-                            let snap_dh = (snap_rect.height - new_rect.height).abs();
-
-                            if snap_dx > 10.0 || snap_dy > 10.0 || snap_dw > 10.0 || snap_dh > 10.0
-                            {
-                                debug!(
-                                    "📍 Snapping window {:?} to zone at {:?}",
-                                    window_id, snap_rect
-                                );
-
-                                // Mark as programmatic move to avoid feedback loop
-                                self.programmatically_moving.insert(window_id);
-
-                                // Move the window to snap position
-                                match self.macos.move_window(window_id, snap_rect).await {
-                                    Ok(_) => {
-                                        debug!("✅ Successfully snapped window {:?}", window_id);
-                                        // Update our internal state
-                                        if let Some(window) = self.windows.get_mut(&window_id) {
-                                            window.rect = snap_rect;
-                                        }
-                                        self.previous_window_positions.insert(window_id, snap_rect);
-                                    }
-                                    Err(e) => {
-                                        warn!("❌ Failed to snap window {:?}: {}, returning to original", window_id, e);
-                                        self.return_window_to_original(window_id, prev_rect)
-                                            .await?;
-                                    }
-                                }
+                            // Update our internal state
+                            if let Some(window) = self.windows.get_mut(&window_id) {
+                                window.rect = target_rect;
                             }
+                            debug!("✅ Successfully snapped window {:?} back to layout", window_id);
                         }
+                        return Ok(());
+                    } else {
+                        debug!("📍 Window already close to layout position: {:.1}px", layout_distance);
                     }
-                    None => {
-                        // Outside any zone: return to original
-                        debug!("🚫 Window outside all zones, returning to original");
-                        self.return_window_to_original(window_id, prev_rect).await?;
-                    }
+                } else {
+                    debug!("🚫 No layout target found for window {:?}", window_id);
                 }
+                
+                // If no snapping occurred, just note the move - don't reapply layout immediately
+                // This prevents feedback loops where layout application triggers more moves
+                debug!("Manual window move detected - layout may be disrupted");
+            } else {
+                debug!("⚠️ Movement too small ({:.1}px) - ignoring", distance);
             }
         } else {
-            // First time seeing this window
-            debug!(
-                "Recording initial position for window {:?}: {:?}",
-                window_id, new_rect
-            );
+            debug!("📍 First position recorded for window {:?} - no snapping available yet", window_id);
+        }
+
+        Ok(())
+    }
+
+    async fn get_layout_target_for_window(&self, window_id: WindowId) -> Option<Rect> {
+        // Get the computed layout for this window
+        let effective_workspace = self.get_effective_current_workspace();
+        let workspace_windows: Vec<Window> = self
+            .windows
+            .values()
+            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+            .cloned()
+            .collect();
+
+        if workspace_windows.is_empty() {
+            return None;
+        }
+
+        // We need a mutable reference to layout_manager, but we're in an immutable method
+        // Let's compute the layout directly using the same logic
+        let screen_rect = match self.macos.get_screen_rect().await {
+            Ok(rect) => rect,
+            Err(_) => return None,
+        };
+        
+        let workspace_refs: Vec<&Window> = workspace_windows.iter().collect();
+        
+        // Create a temporary copy of the layout manager to compute layout
+        let mut temp_layout_manager = self.layout_manager.clone();
+        let layouts = temp_layout_manager.compute_layout(
+            &workspace_refs,
+            screen_rect,
+            &self.config.general,
+        );
+
+        layouts.get(&window_id).copied()
+    }
+
+    async fn handle_window_resize(
+        &mut self,
+        window_id: WindowId,
+        current_rect: Rect,
+    ) -> Result<()> {
+        debug!("🔧 handle_window_resize called for window {:?} at {:?}", window_id, current_rect);
+        
+        // Get the computed layout for this window to see what size it should be
+        let effective_workspace = self.get_effective_current_workspace();
+        let workspace_windows: Vec<Window> = self
+            .windows
+            .values()
+            .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+            .cloned()
+            .collect();
+
+        if workspace_windows.is_empty() {
+            debug!("No windows to layout - skipping resize handling");
+            return Ok(());
+        }
+
+        let screen_rect = self.macos.get_screen_rect().await?;
+        let workspace_refs: Vec<&Window> = workspace_windows.iter().collect();
+        let layouts = self.layout_manager.compute_layout(
+            &workspace_refs,
+            screen_rect,
+            &self.config.general,
+        );
+
+        if let Some(target_rect) = layouts.get(&window_id) {
+            let pos_distance = ((target_rect.x - current_rect.x).powi(2) + (target_rect.y - current_rect.y).powi(2)).sqrt();
+            let size_distance = ((target_rect.width - current_rect.width).powi(2) + (target_rect.height - current_rect.height).powi(2)).sqrt();
+            
+            debug!("  -> Target layout: {:?}", target_rect);
+            debug!("  -> Position distance: {:.1}px, Size distance: {:.1}px", pos_distance, size_distance);
+            
+            // If window is significantly different from layout, snap it back
+            if pos_distance > 10.0 || size_distance > 10.0 {
+                info!("📐 Snapping resized window {:?} back to layout at {:?}", window_id, target_rect);
+                self.programmatically_moving.insert(window_id);
+                
+                if let Err(e) = self.macos.move_window(window_id, *target_rect).await {
+                    warn!("❌ Failed to snap resized window back to layout: {}", e);
+                } else {
+                    // Update our internal state
+                    if let Some(window) = self.windows.get_mut(&window_id) {
+                        window.rect = *target_rect;
+                    }
+                    debug!("✅ Successfully snapped resized window {:?} back to layout", window_id);
+                }
+            } else {
+                debug!("📐 Window already close to target layout - no snapping needed");
+            }
+        } else {
+            debug!("⚠️ No layout target found for window {:?}", window_id);
         }
 
         Ok(())
@@ -682,9 +755,9 @@ impl WindowManager {
                     if let Some(w) = self.windows.get_mut(&window2_id) {
                         w.rect = window1_rect;
                     }
-                    self.previous_window_positions
+                    self.last_window_positions
                         .insert(window1_id, window2_rect);
-                    self.previous_window_positions
+                    self.last_window_positions
                         .insert(window2_id, window1_rect);
                 }
                 Err(e) => {
@@ -696,7 +769,7 @@ impl WindowManager {
                             if let Some(w) = self.windows.get_mut(&window1_id) {
                                 w.rect = window2_rect;
                             }
-                            self.previous_window_positions
+                            self.last_window_positions
                                 .insert(window1_id, window2_rect);
                         }
                         Err(e) => {
@@ -709,7 +782,7 @@ impl WindowManager {
                             if let Some(w) = self.windows.get_mut(&window2_id) {
                                 w.rect = window1_rect;
                             }
-                            self.previous_window_positions
+                            self.last_window_positions
                                 .insert(window2_id, window1_rect);
                         }
                         Err(e) => {
@@ -775,9 +848,9 @@ impl WindowManager {
                         if let Some(w) = self.windows.get_mut(&window2_id) {
                             w.rect = window1_original_rect;
                         }
-                        self.previous_window_positions
+                        self.last_window_positions
                             .insert(window1_id, window2_rect);
-                        self.previous_window_positions
+                        self.last_window_positions
                             .insert(window2_id, window1_original_rect);
                     }
                     Err(e) => {
@@ -789,7 +862,7 @@ impl WindowManager {
                                 if let Some(w) = self.windows.get_mut(&window1_id) {
                                     w.rect = window2_rect;
                                 }
-                                self.previous_window_positions
+                                self.last_window_positions
                                     .insert(window1_id, window2_rect);
                             }
                             Err(e) => {
@@ -806,7 +879,7 @@ impl WindowManager {
                                 if let Some(w) = self.windows.get_mut(&window2_id) {
                                     w.rect = window1_original_rect;
                                 }
-                                self.previous_window_positions
+                                self.last_window_positions
                                     .insert(window2_id, window1_original_rect);
                             }
                             Err(e) => {
@@ -843,7 +916,7 @@ impl WindowManager {
                 if let Some(window) = self.windows.get_mut(&window_id) {
                     window.rect = original_rect;
                 }
-                self.previous_window_positions
+                self.last_window_positions
                     .insert(window_id, original_rect);
             }
             Err(e) => warn!(
@@ -893,6 +966,7 @@ impl WindowManager {
         );
         self.current_workspace
     }
+
 
     fn find_window_in_direction(&self, direction: crate::hotkeys::Direction) -> Option<WindowId> {
         let focused_id = self.get_focused_window_id()?;
@@ -966,7 +1040,7 @@ impl WindowManager {
         let mut new_windows = HashMap::new();
         for window in current_windows {
             // Store initial positions for new windows
-            if let std::collections::hash_map::Entry::Vacant(e) = self.previous_window_positions.entry(window.id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.last_window_positions.entry(window.id) {
                 e.insert(window.rect);
             }
             new_windows.insert(window.id, window);
@@ -981,28 +1055,57 @@ impl WindowManager {
                 "Window count changed: {} -> {} windows",
                 old_count, new_count
             );
-            // Trigger layout update when window count changes
-            self.apply_layout().await?;
+            // Mark layout as needing update, but don't apply immediately
+            // This prevents rapid layout applications during window enumeration
+            self.layout_needs_update = true;
         }
 
         Ok(())
     }
 
     async fn apply_layout(&mut self) -> Result<()> {
+        self.apply_layout_internal(false).await
+    }
+
+    async fn apply_layout_force(&mut self) -> Result<()> {
+        self.apply_layout_internal(true).await
+    }
+
+    async fn apply_layout_internal(&mut self, force: bool) -> Result<()> {
+        // Throttle layout applications to prevent rapid fire updates, unless forced
+        if !force {
+            let now = std::time::Instant::now();
+            if let Some(last_time) = self.last_layout_time {
+                if now.duration_since(last_time).as_millis() < 200 {
+                    debug!("Layout application throttled - too soon since last application");
+                    return Ok(());
+                }
+            }
+            self.last_layout_time = Some(now);
+        } else {
+            self.last_layout_time = Some(std::time::Instant::now());
+            debug!("🚀 Forcing layout application");
+        }
+        
         // Use effective workspace detection for more reliable filtering
         let effective_workspace = self.get_effective_current_workspace();
 
-        // Get windows in the effective current workspace
-        let workspace_windows: Vec<&Window> = self
+        // Get windows in the effective current workspace - collect to owned to avoid borrow issues
+        let workspace_windows: Vec<Window> = self
             .windows
             .values()
             .filter(|w| w.workspace_id == effective_workspace && !w.is_minimized)
+            .cloned()
             .collect();
 
         if workspace_windows.is_empty() {
             debug!("No windows to layout in workspace {}", effective_workspace);
             return Ok(());
         }
+        
+        debug!("=== LAYOUT APPLICATION START ===");
+        debug!("Found {} windows to layout in workspace {}", workspace_windows.len(), effective_workspace);
+
 
         debug!(
             "Applying layout to {} windows in workspace {} using {:?}",
@@ -1019,20 +1122,25 @@ impl WindowManager {
         }
 
         let screen_rect = self.macos.get_screen_rect().await?;
+        let workspace_refs: Vec<&Window> = workspace_windows.iter().collect();
         let layouts = self.layout_manager.compute_layout(
-            &workspace_windows,
+            &workspace_refs,
             screen_rect,
             &self.config.general,
         );
 
+        debug!("Layout computation complete: {} positions calculated", layouts.len());
+        for (window_id, rect) in &layouts {
+            debug!("  -> Window {:?} should be at {:?}", window_id, rect);
+        }
+        
         // Mark all windows as being moved programmatically
         for window_id in layouts.keys() {
             self.programmatically_moving.insert(*window_id);
         }
 
         // Use the new move_all_windows method to handle all windows at once
-        let workspace_windows_vec: Vec<Window> =
-            workspace_windows.iter().map(|w| (*w).clone()).collect();
+        let workspace_windows_vec: Vec<Window> = workspace_windows.clone();
         match self
             .macos
             .move_all_windows(&layouts, &workspace_windows_vec)
@@ -1040,11 +1148,13 @@ impl WindowManager {
         {
             Ok(_) => {
                 debug!("Successfully applied layout to all windows");
-                // Update our internal window state
+                // Update our internal window state AND position tracking
                 for (window_id, rect) in layouts {
                     if let Some(window) = self.windows.get_mut(&window_id) {
                         window.rect = rect;
                     }
+                    // Update position tracking to prevent feedback loops
+                    self.last_window_positions.insert(window_id, rect);
                 }
             }
             Err(e) => {
@@ -1087,14 +1197,17 @@ impl WindowManager {
                         }
                     }
 
-                    // Update our internal window state
+                    // Update our internal window state and position tracking
                     if let Some(window) = self.windows.get_mut(&window_id) {
                         window.rect = rect;
                     }
+                    // Update position tracking to prevent feedback loops
+                    self.last_window_positions.insert(window_id, rect);
                 }
             }
         }
-
+        
+        debug!("=== LAYOUT APPLICATION END ===");
         Ok(())
     }
 
